@@ -1,0 +1,2297 @@
+-- Provisions the isolated App unit-test database used by:
+--   backend/api/src/test/resources/application-test.yaml
+--   backend/jBatch/src/test/resources/application-test.yaml
+--
+-- Run against the local MySQL server at 127.0.0.1:3306 with an account that has
+-- CREATE DATABASE / CREATE USER / GRANT privileges (e.g. root). Requires explicit
+-- confirmation per this repository's Real Database Change Confirmation Rule before
+-- running against any shared or persistent instance.
+--
+-- Table definitions are sourced from Database/App/Table/ (single source of truth).
+-- Keep both in sync if a table changes.
+
+DROP DATABASE IF EXISTS pef_unit;
+
+CREATE DATABASE pef_unit
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_0900_ai_ci;
+
+CREATE USER IF NOT EXISTS 'pef_unit'@'%' IDENTIFIED BY 'pef_unit';
+GRANT ALL PRIVILEGES ON pef_unit.* TO 'pef_unit'@'%';
+FLUSH PRIVILEGES;
+
+USE pef_unit;
+
+-- ============================================================
+-- Tables: Common / System (Database/App/Table/)
+-- ============================================================
+-- Source: Database/App/Table/TB_B_CMPY.sql
+DROP TABLE IF EXISTS TB_B_CMPY;
+
+CREATE TABLE TB_B_CMPY
+(
+  CMPY_CD           CHAR(1)                     NOT NULL,
+  CMPY_NAME         VARCHAR(50)                 NOT NULL,
+  ADDR_LINE1        VARCHAR(25)                 NOT NULL,
+  ADDR_LINE2        VARCHAR(25),
+  CITY              VARCHAR(25)                 NOT NULL,
+  PROVINCE          VARCHAR(20)                 NOT NULL,
+  PINCODE           DECIMAL(5)                  NOT NULL,
+  ALIAS_NM          VARCHAR(4),
+  SAP_CONTROL_AREA  VARCHAR(3)                  NOT NULL,
+  SAP_CMPY_CD       VARCHAR(5),
+  CB                VARCHAR(36)                 NOT NULL,
+  CD                DATETIME                    NOT NULL,
+  MB                VARCHAR(36)                 NOT NULL,
+  MD                DATETIME                    NOT NULL,
+  CMPY_ABBR         VARCHAR(5),
+  ACTIVE_FLAG       CHAR(1)                     NOT NULL,
+  CONSTRAINT XPKTB_B_CMPY PRIMARY KEY (CMPY_CD)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/TB_B_EMP_INFO_EXT.sql
+DROP TABLE IF EXISTS TB_B_EMP_INFO_EXT;
+
+CREATE TABLE TB_B_EMP_INFO_EXT
+(
+  USER_ID            VARCHAR(36)                NOT NULL,
+  OPERATION_CMPY_CD  CHAR(1)                    NOT NULL,
+  DEFAULT_PLANT      CHAR(1),
+  COST_CENTER        VARCHAR(8),
+  AM_USER_ID         VARCHAR(36),
+  MGR_USER_ID        VARCHAR(36),
+  GM_USER_ID         VARCHAR(36),
+  VP_USER_ID         VARCHAR(36),
+  CB                 VARCHAR(36)                NOT NULL,
+  CD                 DATETIME                   NOT NULL,
+  MB                 VARCHAR(36)                NOT NULL,
+  MD                 DATETIME                   NOT NULL,
+  CONSTRAINT XPKTB_B_EMP_INFO_EXT PRIMARY KEY (USER_ID, OPERATION_CMPY_CD)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/TB_B_EMP_INFO.sql
+DROP TABLE IF EXISTS TB_B_EMP_INFO;
+
+CREATE TABLE TB_B_EMP_INFO
+(
+  USER_ID        VARCHAR(36)                    NOT NULL,
+  EMP_NO         VARCHAR(50),
+  EMAIL          VARCHAR(100),
+  FIRST_NAME     VARCHAR(100)                   NOT NULL,
+  LAST_NAME      VARCHAR(100)                   NOT NULL,
+  FULL_NAME      VARCHAR(201)                   NOT NULL,
+  COMPANY        VARCHAR(100),
+  DIVISION       VARCHAR(100),
+  DEPARTMENT     VARCHAR(100),
+  USER_FUNCTION  VARCHAR(100),
+  CB             VARCHAR(36)                    NOT NULL,
+  CD             DATETIME                       NOT NULL,
+  MB             VARCHAR(36)                    NOT NULL,
+  MD             DATETIME                       NOT NULL,
+  SC2_USER_ID    VARCHAR(36),
+  CONSTRAINT XPK_TB_B_EMP_INFO PRIMARY KEY (USER_ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_EMP_INFO_02 ON TB_B_EMP_INFO (EMP_NO);
+
+-- Source: Database/App/Table/TB_B_MAT_PLANT.sql
+DROP TABLE IF EXISTS TB_B_MAT_PLANT;
+
+CREATE TABLE TB_B_MAT_PLANT
+(
+  CMPY_CD     CHAR(1)                           NOT NULL,
+  MAT_CD      VARCHAR(10)                       NOT NULL,
+  PLANT_CD    CHAR(1)                           NOT NULL,
+  STORE_TYPE  CHAR(1)                           NOT NULL,
+  FRCST_TYP   CHAR(1),
+  DEL_TYP     CHAR(1)                           DEFAULT 'N' NOT NULL,
+  CONSTRAINT XPKTB_B_MAT_PLANT PRIMARY KEY (MAT_CD, CMPY_CD, PLANT_CD)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_MAT_PLANT_01 ON TB_B_MAT_PLANT (CMPY_CD, MAT_CD);
+CREATE INDEX IX_NK_MAT_PLANT_02 ON TB_B_MAT_PLANT (PLANT_CD);
+CREATE INDEX IX_NK_MAT_PLANT_03 ON TB_B_MAT_PLANT (STORE_TYPE);
+CREATE INDEX IX_NK_MAT_PLANT_04 ON TB_B_MAT_PLANT (CMPY_CD, MAT_CD, PLANT_CD);
+CREATE INDEX IX_NK_MAT_PLANT_05 ON TB_B_MAT_PLANT (CMPY_CD, MAT_CD, PLANT_CD, STORE_TYPE);
+
+-- Source: Database/App/Table/TB_B_MATERIAL.sql
+DROP TABLE IF EXISTS TB_B_MATERIAL;
+
+CREATE TABLE TB_B_MATERIAL
+(
+  CMPY_CD                  CHAR(1)              NOT NULL,
+  MAT_CD                   VARCHAR(10)          NOT NULL,
+  MGRP_CD                  VARCHAR(3)           NOT NULL,
+  MCLASS4_CD               VARCHAR(1)           NOT NULL,
+  MCLASS5_CD               CHAR(1)              NOT NULL,
+  B_UOM                    VARCHAR(3)           NOT NULL,
+  MAT_NAME                 VARCHAR(100)         NOT NULL,
+  THAI_NAME                VARCHAR(100),
+  MAT_SPEC                 VARCHAR(255)         NOT NULL,
+  INV_TYP                  CHAR(1)              NOT NULL,
+  MAT_TYPE                 CHAR(1)              NOT NULL,
+  BRAND_NAME               VARCHAR(20),
+  MAT_MODEL                VARCHAR(50),
+  CN_UOM                   VARCHAR(3)           NOT NULL,
+  GI_UOM                   VARCHAR(3)           NOT NULL,
+  CN_CONV                  DECIMAL(9,4)         NOT NULL,
+  GI_CONV                  DECIMAL(9,4)         NOT NULL,
+  STORE_TYPE               CHAR(1),
+  CATALOG_IND              CHAR(1)              NOT NULL,
+  SPOT_CONT                CHAR(1),
+  FRCT_BUF                 DECIMAL(4,2),
+  ACTIVE_FLG               CHAR(1)              NOT NULL,
+  OLD_MATCD                VARCHAR(10),
+  DEL_TYP                  CHAR(1)              DEFAULT 'N' NOT NULL,
+  PK_CONV                  DECIMAL(18,2),
+  PK_UOM                   VARCHAR(3),
+  KG_PERSHEET              DECIMAL(8,3),
+  CD                       DATETIME             NOT NULL,
+  CB                       VARCHAR(36)          NOT NULL,
+  MB                       VARCHAR(36)          NOT NULL,
+  MD                       DATETIME             NOT NULL,
+  SAP_READ                 CHAR(1)              DEFAULT '0' NOT NULL,
+  FPL_READ                 VARCHAR(2)           DEFAULT 'NA' NOT NULL,
+  FIRST_PO_ISSUED_DATE     DATETIME,
+  FIRST_MAT_RECD_DATE      DATETIME,
+  COMMON_SP_FLAG           CHAR(1)              DEFAULT 'N',
+  ARIBA_SEND_FLAG          CHAR(1)              DEFAULT '0',
+  ARIBA_SEND_DATE          DATETIME,
+  ARIBA_IF_NAME            VARCHAR(30),
+  SAP_BATCH_NO             VARCHAR(10),
+  SENT_TO_SAP_DATE         DATETIME,
+  ETS_READ                 CHAR(1),
+  SFCM_READ                CHAR(1),
+  WBS_ELEMENT              VARCHAR(24),
+  USE_PRODUCT_WBS_FLAG     CHAR(1),
+  WITHHOLDING_TAX_FLAG     CHAR(1),
+  TIME_USAGE_CTRL          VARCHAR(4),
+  GI_EXCEL_FLAG            CHAR(1),
+  MOIL_FLAG                CHAR(1),
+  STK_ADJUST_FLAG          CHAR(1),
+  REMARKS                  VARCHAR(255),
+  GROUP_TYPE_CD            VARCHAR(2),
+  AUTO_REPLENISHMENT_FLAG  CHAR(1),
+  ABLE_CREATE_PR_FLAG      CHAR(1),
+  CONSTRAINT XPKTB_B_MATERIAL PRIMARY KEY (CMPY_CD, MAT_CD)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_MATERIAL_01 ON TB_B_MATERIAL (B_UOM);
+CREATE INDEX IX_NK_MATERIAL_02 ON TB_B_MATERIAL (INV_TYP);
+CREATE INDEX IX_NK_MATERIAL_03 ON TB_B_MATERIAL (ACTIVE_FLG);
+CREATE INDEX IX_NK_MATERIAL_04 ON TB_B_MATERIAL (MAT_TYPE);
+CREATE INDEX IX_NK_MATERIAL_05 ON TB_B_MATERIAL (MAT_CD);
+CREATE INDEX IX_NK_MATERIAL_06 ON TB_B_MATERIAL (SAP_BATCH_NO);
+CREATE INDEX IX_NK_MATERIAL_07 ON TB_B_MATERIAL (MGRP_CD);
+CREATE INDEX IX_NK_MATERIAL_08 ON TB_B_MATERIAL (MCLASS4_CD);
+CREATE INDEX IX_NK_MATERIAL_09 ON TB_B_MATERIAL (MCLASS5_CD);
+CREATE INDEX IX_NK_MATERIAL_10 ON TB_B_MATERIAL ((UPPER(MAT_NAME)));
+CREATE INDEX IX_NK_MATERIAL_11 ON TB_B_MATERIAL ((UPPER(MAT_MODEL)));
+CREATE INDEX IX_NK_MATERIAL_12 ON TB_B_MATERIAL ((UPPER(BRAND_NAME)));
+CREATE INDEX IX_NK_MATERIAL_13 ON TB_B_MATERIAL ((UPPER(MAT_SPEC)));
+CREATE INDEX IX_NK_MATERIAL_14 ON TB_B_MATERIAL ((UPPER(THAI_NAME)));
+CREATE INDEX IX_NK_MATERIAL_15 ON TB_B_MATERIAL ((DATE(CD)));
+CREATE INDEX IX_NK_MATERIAL_16 ON TB_B_MATERIAL (STORE_TYPE);
+CREATE INDEX IX_NK_MATERIAL_17 ON TB_B_MATERIAL (COMMON_SP_FLAG);
+
+-- Note: Oracle DEFAULT 0 (NUMBER) on SAP_READ CHAR(1) converted to DEFAULT '0' (CHAR).
+-- Oracle UPPER(...) and TRUNC(...) functional indexes -> MySQL 8.0+ functional key parts.
+
+-- Source: Database/App/Table/TB_B_PARTS_STK.sql
+DROP TABLE IF EXISTS TB_B_PARTS_STK;
+
+CREATE TABLE TB_B_PARTS_STK
+(
+  ID                DECIMAL(10)                 NOT NULL,
+  CMPY_CD           CHAR(1)                     NOT NULL,
+  PLANT_CD          CHAR(1)                     NOT NULL,
+  MARU_CD           CHAR(1),
+  STKLN_CD          VARCHAR(3),
+  PART_CD           VARCHAR(14)                 NOT NULL,
+  LOCATION          VARCHAR(10),
+  STK_ON_HAND       DECIMAL(9,2)                NOT NULL,
+  L_ISS_DT          DATETIME,
+  L_REC_DT          DATETIME,
+  CD                DATETIME                    NOT NULL,
+  CB                VARCHAR(20)                 NOT NULL,
+  MD                DATETIME                    NOT NULL,
+  MB                VARCHAR(20)                 NOT NULL,
+  PHY_COUNT_ACTIVE  CHAR(1)                     DEFAULT 'N',
+  CONSTRAINT XPKTB_B_PARTS_STK PRIMARY KEY (ID),
+  CONSTRAINT XAK1TB_B_PARTS_STK UNIQUE KEY (CMPY_CD, PLANT_CD, MARU_CD, STKLN_CD, PART_CD)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_PARTS_STK_01 ON TB_B_PARTS_STK (CMPY_CD, PLANT_CD, PART_CD, STKLN_CD);
+CREATE INDEX IX_NK_PARTS_STK_02 ON TB_B_PARTS_STK (STKLN_CD);
+
+-- Source: Database/App/Table/TB_B_PARTS.sql
+DROP TABLE IF EXISTS TB_B_PARTS;
+
+CREATE TABLE TB_B_PARTS
+(
+  PART_CD           VARCHAR(14),
+  PART_DESC         VARCHAR(50)                 DEFAULT 'N',
+  SPEC              VARCHAR(50),
+  PCS_PALLET        DECIMAL(3),
+  SERIES_NO         VARCHAR(15),
+  FRM_RESIDUE       CHAR(1),
+  PART_TYPE_ID      CHAR(1),
+  CB                VARCHAR(20)                 NOT NULL,
+  CD                DATETIME                    NOT NULL,
+  MB                VARCHAR(20)                 NOT NULL,
+  MD                DATETIME                    NOT NULL,
+  FPL_READ          VARCHAR(2)                  DEFAULT 'NA',
+  ACTIVE_STATUS     CHAR(1)                     DEFAULT 'Y',
+  INACTIVE_DATE     DATETIME,
+  SAP_READ          CHAR(1)                     DEFAULT '0',
+  SAP_BATCH_NO      VARCHAR(10),
+  SENT_TO_SAP_DATE  DATETIME,
+  CONSTRAINT XPKTB_B_PARTS PRIMARY KEY (PART_CD)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_PARTS_01 ON TB_B_PARTS (PART_TYPE_ID);
+CREATE INDEX IX_NK_PARTS_02 ON TB_B_PARTS (SAP_BATCH_NO);
+CREATE INDEX IX_NK_PARTS_03 ON TB_B_PARTS (ACTIVE_STATUS);
+
+-- Note: Oracle DEFAULT 0 (NUMBER) on SAP_READ CHAR(1) converted to DEFAULT '0' (CHAR).
+
+-- Source: Database/App/Table/TB_B_PHY_STOCK.sql
+DROP TABLE IF EXISTS TB_B_PHY_STOCK;
+
+CREATE TABLE TB_B_PHY_STOCK
+(
+  ID                    BIGINT                  NOT NULL,
+  CMPY_CD               CHAR(1)                 NOT NULL,
+  PLANT_CD              CHAR(1),
+  WH_CD                 VARCHAR(3),
+  MARU_CD               CHAR(1),
+  STKLN_CD              VARCHAR(3),
+  STK_DT                DATETIME                NOT NULL,
+  MAT_CD                VARCHAR(10),
+  PART_CD               VARCHAR(14),
+  ACT_QTY               DECIMAL(9,2),
+  SYS_QTY               DECIMAL(9,2),
+  ADJ_QTY               DECIMAL(9,2),
+  REMARKS               VARCHAR(255),
+  STATUS                CHAR(1)                 NOT NULL,
+  SUBWH_CD              VARCHAR(3),
+  DOC_NO                VARCHAR(10)             NOT NULL,
+  ITEM_NUMBER           VARCHAR(3),
+  CB                    VARCHAR(36)             NOT NULL,
+  CD                    DATETIME                NOT NULL,
+  MB                    VARCHAR(36)             NOT NULL,
+  MD                    DATETIME                NOT NULL,
+  SAP_SENT_DT           DATETIME,
+  SAP_RECEIVE_DT        DATETIME,
+  LOCATION              VARCHAR(30)             DEFAULT 'N/A',
+  SAP_REF_DOC_NO        VARCHAR(10),
+  SAP_READ              CHAR(1)                 DEFAULT '0',
+  SAP_DOC_NO            VARCHAR(20),
+  MGR_USER_ID           VARCHAR(36),
+  GM_USER_ID            VARCHAR(36),
+  AM_USER_ID            VARCHAR(36),
+  MOVING_AVG_PRICE      DECIMAL(11,4),
+  SAP_BATCH_NO          VARCHAR(10),
+  SENT_TO_SAP_DATE      DATETIME,
+  DESTINATION_MAT_CD    VARCHAR(10),
+  DESTINATION_PLANT_CD  CHAR(1),
+  CONSTRAINT XPKTB_B_PHY_STOCK PRIMARY KEY (ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_PHY_STOCK_01 ON TB_B_PHY_STOCK (SAP_BATCH_NO);
+CREATE INDEX IX_NK_PHY_STOCK_02 ON TB_B_PHY_STOCK (STATUS);
+CREATE INDEX IX_NK_PHY_STOCK_03 ON TB_B_PHY_STOCK (CMPY_CD, PLANT_CD, PART_CD, STKLN_CD);
+CREATE INDEX IX_NK_PHY_STOCK_04 ON TB_B_PHY_STOCK ((DATE(STK_DT)));
+CREATE INDEX IX_NK_PHY_STOCK_05 ON TB_B_PHY_STOCK (CMPY_CD, WH_CD, MAT_CD);
+CREATE INDEX IX_NK_PHY_STOCK_06 ON TB_B_PHY_STOCK (CMPY_CD, PLANT_CD, MAT_CD);
+CREATE INDEX IX_NK_PHY_STOCK_07 ON TB_B_PHY_STOCK ((SUBSTR(DOC_NO,6,2)));
+CREATE INDEX IX_NK_PHY_STOCK_08 ON TB_B_PHY_STOCK (WH_CD);
+CREATE INDEX IX_NK_PHY_STOCK_09 ON TB_B_PHY_STOCK (CMPY_CD, PLANT_CD, WH_CD, STATUS, (YEAR(STK_DT)));
+CREATE INDEX IX_NK_PHY_STOCK_10 ON TB_B_PHY_STOCK (DOC_NO);
+
+-- Note: Oracle TRUNC(date) -> MySQL DATE(date); TO_CHAR(date,'yyyy') -> YEAR(date).
+-- Oracle SUBSTR("DOC_NO",6,2) -> SUBSTR(DOC_NO,6,2) (MySQL 8.0+ functional key parts).
+
+-- Source: Database/App/Table/TB_B_PLANT.sql
+DROP TABLE IF EXISTS TB_B_PLANT;
+
+CREATE TABLE TB_B_PLANT
+(
+  PLANT_CD       CHAR(1)                        NOT NULL,
+  PLANT_NM       VARCHAR(20)                    NOT NULL,
+  ADDR_LINE1     VARCHAR(25),
+  ADDR_LINE2     VARCHAR(25),
+  CITY           VARCHAR(20),
+  PROVINCE       VARCHAR(20),
+  PINCODE        DECIMAL(5),
+  PROFIT_CENTER  VARCHAR(10),
+  BRANCH_CODE    VARCHAR(5),
+  SAP_PLANT_CD   VARCHAR(4),
+  CB             VARCHAR(36)                    NOT NULL,
+  CD             DATETIME                       NOT NULL,
+  MB             VARCHAR(36)                    NOT NULL,
+  MD             DATETIME                       NOT NULL,
+  PURCH_ORG      VARCHAR(4),
+  TAX_ID         VARCHAR(13),
+  ACTIVE_FLAG    CHAR(1)                        DEFAULT 'Y' NOT NULL,
+  CONSTRAINT XPKTB_B_PLANT PRIMARY KEY (PLANT_CD)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_PLANT_01 ON TB_B_PLANT (ACTIVE_FLAG);
+
+-- Source: Database/App/Table/TB_B_PR_HEADER.sql
+DROP TABLE IF EXISTS TB_B_PR_HEADER;
+
+CREATE TABLE TB_B_PR_HEADER
+(
+  PR_NO            VARCHAR(11)                  NOT NULL,
+  CMPY_CD          CHAR(1)                      NOT NULL,
+  PLANT_CD         CHAR(1)                      NOT NULL,
+  WH_CD            VARCHAR(3),
+  PR_DATE          DATETIME                     NOT NULL,
+  SRC_TYP          CHAR(1)                      NOT NULL,
+  PR_STATUS        CHAR(1)                      NOT NULL,
+  SOURCING         CHAR(1)                      NOT NULL,
+  MODEL_CD         VARCHAR(10),
+  DEL_TYPE         CHAR(1)                      NOT NULL,
+  REC_LOC          VARCHAR(10),
+  EMPL_DEPT        VARCHAR(100),
+  EMPL_FUNC        VARCHAR(100),
+  EMPL_LINE        VARCHAR(100),
+  CC_REQUEST       VARCHAR(8),
+  RECEIVE1_BY      VARCHAR(36),
+  RECEIVE2_BY      VARCHAR(36),
+  REC_TIME         VARCHAR(10),
+  COMMENTS         VARCHAR(255),
+  NEW_ITEM         CHAR(1),
+  CHKD_BY          VARCHAR(36),
+  CHKD_DT          DATETIME,
+  APPR_BY          VARCHAR(36),
+  APPR_DT          DATETIME,
+  PO_CREATED       DATETIME,
+  REJECT_BY        VARCHAR(36),
+  REJECT_DT        DATETIME,
+  REJECT_REMARKS   VARCHAR(255),
+  PR_MODE          CHAR(1),
+  REC_PH1          VARCHAR(50),
+  REC_PH2          VARCHAR(50),
+  DEST_WH_CD       VARCHAR(3),
+  AM_USER_ID       VARCHAR(36),
+  MGR_USER_ID      VARCHAR(36),
+  GM_USER_ID       VARCHAR(36),
+  PROPOSAL_FLAG    CHAR(1),
+  PR_AMOUNT        DECIMAL(11,2),
+  APPR_BY_CC_FLAG  CHAR(1),
+  CB               VARCHAR(36)                  NOT NULL,
+  CD               DATETIME                     NOT NULL,
+  MB               VARCHAR(36)                  NOT NULL,
+  MD               DATETIME                     NOT NULL,
+  SAP_READ         CHAR(1)                      NOT NULL,
+  SAP_DOC_NO       VARCHAR(20),
+  STKLN_CD         VARCHAR(3),
+  SUBWH_CD         VARCHAR(3),
+  CC_CD            VARCHAR(8),
+  PR_TYPE          CHAR(1),
+  BDGT_CD          VARCHAR(12),
+  START_EFF_DT     DATETIME,
+  END_EFF_DT       DATETIME,
+  CC_BDGT_ID       DECIMAL(38),
+  KB_TYP           CHAR(1),
+  KB_BARCD_NO      VARCHAR(25),
+  CANCEL_DATE      DATETIME,
+  COMMON_SP_FLAG   CHAR(1)                      NOT NULL,
+  ARIBA_SEND_FLAG  CHAR(1)                      NOT NULL,
+  ARIBA_SEND_DATE  DATETIME,
+  ARIBA_IF_NAME    VARCHAR(30),
+  WORKSPACE_ID     VARCHAR(50),
+  DOC_ID           VARCHAR(50),
+  VP_USER_ID       VARCHAR(36),
+  AM_WH_USER_ID    VARCHAR(36),
+  M_WH_USER_ID     VARCHAR(36),
+  GM_WH_USER_ID    VARCHAR(36),
+  CONSTRAINT XPKTB_B_PR_HEADER PRIMARY KEY (PR_NO)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_PR_HEADER_01 ON TB_B_PR_HEADER (WH_CD);
+CREATE INDEX IX_NK_PR_HEADER_02 ON TB_B_PR_HEADER (PR_STATUS);
+CREATE INDEX IX_NK_PR_HEADER_03 ON TB_B_PR_HEADER ((DATE(CD)));
+CREATE INDEX IX_NK_PR_HEADER_04 ON TB_B_PR_HEADER (NEW_ITEM);
+CREATE INDEX IX_NK_PR_HEADER_05 ON TB_B_PR_HEADER (CMPY_CD, PR_NO);
+CREATE INDEX IX_NK_PR_HEADER_06 ON TB_B_PR_HEADER ((UPPER(CC_REQUEST)));
+CREATE INDEX IX_NK_PR_HEADER_07 ON TB_B_PR_HEADER ((DATE(PR_DATE)));
+CREATE INDEX IX_NK_PR_HEADER_08 ON TB_B_PR_HEADER ((DATE(APPR_DT)));
+CREATE INDEX IX_NK_PR_HEADER_09 ON TB_B_PR_HEADER (PLANT_CD);
+CREATE INDEX IX_NK_PR_HEADER_10 ON TB_B_PR_HEADER (CB);
+CREATE INDEX IX_NK_PR_HEADER_11 ON TB_B_PR_HEADER ((SUBSTR(PR_NO,3,9)));
+CREATE INDEX IX_NK_PR_HEADER_12 ON TB_B_PR_HEADER (CMPY_CD, (SUBSTR(PR_NO,3,9)));
+CREATE INDEX IX_NK_PR_HEADER_13 ON TB_B_PR_HEADER (PR_TYPE);
+CREATE INDEX IX_NK_PR_HEADER_14 ON TB_B_PR_HEADER ((IFNULL(MD,CD)));
+
+-- Source: Database/App/Table/TB_B_PR_ITEMS.sql
+DROP TABLE IF EXISTS TB_B_PR_ITEMS;
+
+CREATE TABLE TB_B_PR_ITEMS
+(
+  PR_NO              VARCHAR(11)                NOT NULL,
+  CMPY_CD            CHAR(1)                    NOT NULL,
+  MAT_CD             VARCHAR(10)                NOT NULL,
+  PO_NO              VARCHAR(12),
+  QTY                DECIMAL(11,2)              NOT NULL,
+  REMARKS            VARCHAR(255),
+  CC_CHARGE          VARCHAR(8),
+  BUDGET_NO          VARCHAR(12),
+  DEL_DATE           DATETIME,
+  B_UOM              VARCHAR(3),
+  MACHINE_NO         VARCHAR(17),
+  DEL_TIME           VARCHAR(11),
+  ITEM_NUMBER        VARCHAR(5)                 NOT NULL,
+  REM_QTY            DECIMAL(11,2),
+  CB                 VARCHAR(36)                NOT NULL,
+  CD                 DATETIME                   NOT NULL,
+  MB                 VARCHAR(36)                NOT NULL,
+  MD                 DATETIME                   NOT NULL,
+  UNIT_PRICE         DECIMAL(11,4),
+  UNIT_PRICE_SHT     DECIMAL(11,4),
+  COA_CMPY_CD        VARCHAR(5),
+  COA_ACC_CD         VARCHAR(7),
+  COA_CC_CD          VARCHAR(8),
+  COA_FUTURE1        VARCHAR(3),
+  COA_PROJECT_CD     VARCHAR(9),
+  COA_INT_CMPY_CD    VARCHAR(5),
+  COA_BUSINESS_TYPE  VARCHAR(5),
+  COA_BUDGET_NO      VARCHAR(10),
+  COA_FUTURE2        VARCHAR(5),
+  COA_FUTURE3        VARCHAR(5),
+  CANCEL_FLAG        CHAR(1)                    NOT NULL,
+  PO_FLAG            CHAR(1)                    NOT NULL,
+  GI_FLAG            CHAR(1)                    NOT NULL,
+  WBS_ELEMENT        VARCHAR(24),
+  FC_NO              VARCHAR(10),
+  FC_ITEM_NO         VARCHAR(3),
+  FA_NO              VARCHAR(17),
+  FC_DOC_NO          VARCHAR(10),
+  FC_ITEM_DOC_NO     VARCHAR(3),
+  DESTINATION_PLANT  VARCHAR(1),
+  CONSTRAINT XPKTB_B_PR_ITEMS PRIMARY KEY (PR_NO, CMPY_CD, MAT_CD)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_PR_ITEMS_01 ON TB_B_PR_ITEMS (PR_NO);
+CREATE INDEX IX_NK_PR_ITEMS_02 ON TB_B_PR_ITEMS (CMPY_CD, PR_NO);
+CREATE INDEX IX_NK_PR_ITEMS_03 ON TB_B_PR_ITEMS (MAT_CD);
+CREATE INDEX IX_NK_PR_ITEMS_04 ON TB_B_PR_ITEMS ((DATE(DEL_DATE)));
+
+-- Source: Database/App/Table/TB_B_PRT_SMSPRT.sql
+DROP TABLE IF EXISTS TB_B_PRT_SMSPRT;
+
+CREATE TABLE TB_B_PRT_SMSPRT
+(
+  SMS_PARTNO   VARCHAR(10)                      NOT NULL,
+  COLOR_SUF    VARCHAR(2)                       NOT NULL,
+  PART_CD      VARCHAR(14)                      NOT NULL,
+  CAR_FMLY     VARCHAR(4),
+  CD           DATETIME                         NOT NULL,
+  CB           VARCHAR(36)                      NOT NULL,
+  MD           DATETIME                         NOT NULL,
+  MB           VARCHAR(36)                      NOT NULL,
+  EFF_DT       DATETIME                         NOT NULL,
+  EXP_DT       DATETIME                         NOT NULL,
+  NOT_FOR_CMP  CHAR(1)                          NOT NULL,
+  CONSTRAINT XPKTB_B_PRT_SMSPRT PRIMARY KEY (SMS_PARTNO, COLOR_SUF, PART_CD, CAR_FMLY)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_PRT_SMSPRT_01 ON TB_B_PRT_SMSPRT (PART_CD);
+CREATE INDEX IX_NK_PRT_SMSPRT_02 ON TB_B_PRT_SMSPRT ((DATE(EFF_DT)));
+CREATE INDEX IX_NK_PRT_SMSPRT_03 ON TB_B_PRT_SMSPRT ((DATE(EXP_DT)));
+
+-- Note: Oracle TRUNC(date) -> MySQL DATE(date) in functional key parts (MySQL 8.0+).
+
+-- Source: Database/App/Table/TB_H_USER.sql
+DROP TABLE IF EXISTS TB_H_USER;
+
+CREATE TABLE TB_H_USER
+(
+  USER_ID        VARCHAR(36)                    NOT NULL,
+  EMP_NO         VARCHAR(50),
+  EMAIL          VARCHAR(100),
+  TEL_NO         VARCHAR(100),
+  FIRST_NAME     VARCHAR(100)                   NOT NULL,
+  LAST_NAME      VARCHAR(100)                   NOT NULL,
+  COMPANY        VARCHAR(100),
+  DIVISION       VARCHAR(100),
+  DEPARTMENT     VARCHAR(100),
+  SECTION        VARCHAR(100),
+  FULL_NAME      VARCHAR(201)                   NOT NULL,
+  SC2_USER_ID    VARCHAR(36),
+  CB             VARCHAR(36)                    NOT NULL,
+  CD             DATETIME                       NOT NULL,
+  MB             VARCHAR(36)                    NOT NULL,
+  MD             DATETIME                       NOT NULL,
+  INACTIVE_DATE  DATETIME                       NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/TB_L_EXCEL_DOWNLOAD_FILE.sql
+DROP TABLE IF EXISTS TB_L_EXCEL_DOWNLOAD_FILE;
+
+CREATE TABLE TB_L_EXCEL_DOWNLOAD_FILE
+(
+  DOC_ID         VARCHAR(10)                    NOT NULL,
+  FILE_NO        DECIMAL(10)                    NOT NULL,
+  EXEC_END_DT    DATETIME(6),
+  EXEC_START_DT  DATETIME(6),
+  FILE_NAME      VARCHAR(40)                    NOT NULL,
+  FILE_SIZE      DECIMAL(10),
+  STATUS         CHAR(1)                        NOT NULL,
+  UPDATE_BY      VARCHAR(36)                    NOT NULL,
+  UPDATE_DT      DATETIME(6)                    NOT NULL,
+  CONSTRAINT PK_TB_L_EXCEL_DL_FILE PRIMARY KEY (DOC_ID, FILE_NO)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/TB_L_EXCEL_DOWNLOAD_STATUS.sql
+DROP TABLE IF EXISTS TB_L_EXCEL_DOWNLOAD_STATUS;
+
+CREATE TABLE TB_L_EXCEL_DOWNLOAD_STATUS
+(
+  DOC_ID            VARCHAR(10)                 NOT NULL,
+  EXT_XLS_GEN       VARCHAR(500),
+  EXT_XLS_PARAMS    LONGTEXT,
+  FILE_CNT          DECIMAL(4),
+  FUNCTION_ID       VARCHAR(8)                  NOT NULL,
+  MAX_EXE_TIME      DECIMAL(3)                  NOT NULL,
+  MAX_XLS_SIZE      DECIMAL(6)                  NOT NULL,
+  MODULE_ID         VARCHAR(8)                  NOT NULL,
+  OVERRIDE_PATH     VARCHAR(200),
+  PIC_EMAIL         VARCHAR(100),
+  REPORT_NAME       VARCHAR(100),
+  REQUEST_BY        VARCHAR(36)                 NOT NULL,
+  REQUEST_DT        DATETIME(6)                 NOT NULL,
+  SQL_STMT          LONGTEXT,
+  START_COLUMN      DECIMAL(3)                  NOT NULL,
+  START_ROW         DECIMAL(5)                  NOT NULL,
+  STATUS            CHAR(1),
+  UPDATE_BY         VARCHAR(36)                 NOT NULL,
+  UPDATE_DT         DATETIME(6)                 NOT NULL,
+  DISPLAY_NAMES     LONGTEXT,
+  APP_ID            VARCHAR(10),
+  REPORT_TITLE      VARCHAR(200),
+  CONSTRAINT PK_TB_L_EXCEL_DL_STATUS PRIMARY KEY (DOC_ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Note: Oracle CLOB columns (SQL_STMT, DISPLAY_NAMES, EXT_XLS_PARAMS) -> MySQL LONGTEXT.
+
+-- Source: Database/App/Table/TB_L_LOGGER_H.sql
+DROP TABLE IF EXISTS TB_L_LOGGER_H;
+
+CREATE TABLE TB_L_LOGGER_H
+(
+  APP_ID       VARCHAR(10),
+  MODULE_ID    VARCHAR(10),
+  FUNCTION_ID  VARCHAR(10),
+  START_TM     DATETIME,
+  END_TM       DATETIME,
+  USER_ID      VARCHAR(36),
+  STATUS       CHAR(1),
+  MESSAGE      VARCHAR(2000),
+  CONSTRAINT IX_PK_LOGGER_H_01 PRIMARY KEY (APP_ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_LOGGER_H_01 ON TB_L_LOGGER_H (MODULE_ID);
+CREATE INDEX IX_NK_LOGGER_H_02 ON TB_L_LOGGER_H (FUNCTION_ID);
+CREATE INDEX IX_NK_LOGGER_H_03 ON TB_L_LOGGER_H ((DATE(START_TM)));
+CREATE INDEX IX_NK_LOGGER_H_04 ON TB_L_LOGGER_H ((DATE(END_TM)));
+CREATE INDEX IX_NK_LOGGER_H_05 ON TB_L_LOGGER_H (USER_ID);
+CREATE INDEX IX_NK_LOGGER_H_06 ON TB_L_LOGGER_H (STATUS);
+
+-- Note: TRUNC(date) in Oracle functional indexes maps to DATE(date) in MySQL 8.0+.
+
+-- Source: Database/App/Table/TB_L_LOGGER.sql
+DROP TABLE IF EXISTS TB_L_LOGGER;
+
+CREATE TABLE TB_L_LOGGER
+(
+  D_HODTCRE       DATETIME,
+  N_SEQ_NO        BIGINT AUTO_INCREMENT         NOT NULL,
+  V_APL_ID        VARCHAR(10),
+  V_MODULE_ID     VARCHAR(10),
+  V_FUNCTION_ID   VARCHAR(10),
+  V_USERCRE       VARCHAR(36),
+  V_MESSAGE_TYPE  VARCHAR(1),
+  V_MESSAGE_CODE  VARCHAR(12),
+  V_MESSAGE       VARCHAR(2000),
+  V_STATUS        VARCHAR(1),
+  CONSTRAINT IX_PK_LOGGER_01 PRIMARY KEY (N_SEQ_NO)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX IX_NK_LOGGER_01 ON TB_L_LOGGER (V_APL_ID);
+
+-- Note: Oracle used GENERATED BY DEFAULT AS IDENTITY (START WITH 1 MAXVALUE 999999999 MINVALUE 1 CYCLE).
+-- MySQL AUTO_INCREMENT does not support cycle; restart manually if needed.
+
+-- Source: Database/App/Table/TB_M_GENERIC_SEQ_HIST.sql
+DROP TABLE IF EXISTS TB_M_GENERIC_SEQ_HIST;
+
+CREATE TABLE TB_M_GENERIC_SEQ_HIST
+(
+  SEQ_KEY             VARCHAR(20)               NOT NULL,
+  SEQ_YEAR            VARCHAR(6)                NOT NULL,
+  CURRENT_RUNNING_NO  DECIMAL(10)               NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/TB_M_GENERIC_SEQ.sql
+DROP TABLE IF EXISTS TB_M_GENERIC_SEQ;
+
+CREATE TABLE TB_M_GENERIC_SEQ
+(
+  SEQ_KEY             VARCHAR(20)               NOT NULL,
+  SEQ_YEAR            VARCHAR(6)                NOT NULL,
+  CURRENT_RUNNING_NO  DECIMAL(10)               NOT NULL,
+  CONSTRAINT IX_PK_GENERIC_SEQ_01 PRIMARY KEY (SEQ_KEY, SEQ_YEAR)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/TB_M_MODULE_D.sql
+DROP TABLE IF EXISTS TB_M_MODULE_D;
+
+CREATE TABLE TB_M_MODULE_D
+(
+  V_MODULE_ID      VARCHAR(10)                  NOT NULL,
+  V_FUNCTION_ID    VARCHAR(10)                  NOT NULL,
+  V_FUNCTION_NAME  VARCHAR(100),
+  V_ERROR_FLAG     CHAR(1),
+  CREATE_BY        VARCHAR(36)                  NOT NULL,
+  CREATE_DT        DATETIME                     NOT NULL,
+  UPDATE_BY        VARCHAR(36)                  NOT NULL,
+  UPDATE_DT        DATETIME                     NOT NULL,
+  CONSTRAINT IX_PK_M_MODULE_D_01 PRIMARY KEY (V_MODULE_ID, V_FUNCTION_ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/TB_M_MODULE_H.sql
+DROP TABLE IF EXISTS TB_M_MODULE_H;
+
+CREATE TABLE TB_M_MODULE_H
+(
+  V_MODULE_ID    VARCHAR(10)                    NOT NULL,
+  V_MODULE_NAME  VARCHAR(100),
+  CREATE_BY      VARCHAR(36)                    NOT NULL,
+  CREATE_DT      DATETIME                       NOT NULL,
+  UPDATE_BY      VARCHAR(36)                    NOT NULL,
+  UPDATE_DT      DATETIME                       NOT NULL,
+  CONSTRAINT IX_PK_M_MODULE_H_01 PRIMARY KEY (V_MODULE_ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/TB_M_SYSTEM.sql
+DROP TABLE IF EXISTS TB_M_SYSTEM;
+
+CREATE TABLE TB_M_SYSTEM
+(
+  CATEGORY      VARCHAR(40)                     NOT NULL,
+  SUB_CATEGORY  VARCHAR(40)                     NOT NULL,
+  CD            VARCHAR(40)                     NOT NULL,
+  VALUE         VARCHAR(4000),
+  REMARK        VARCHAR(4000),
+  STATUS        VARCHAR(1)                      DEFAULT 'Y' NOT NULL,
+  CREATE_BY     VARCHAR(36)                     NOT NULL,
+  CREATE_DT     DATETIME                        NOT NULL,
+  UPDATE_BY     VARCHAR(36)                     NOT NULL,
+  UPDATE_DT     DATETIME                        NOT NULL,
+  VERSION_NO    INT                             NOT NULL DEFAULT 0,
+  CONSTRAINT IX_PK_M_SYSTEM_01 PRIMARY KEY (CATEGORY, SUB_CATEGORY, CD)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='General Master';
+
+-- Source: Database/App/Table/TB_M_USER_ROLE.sql
+DROP TABLE IF EXISTS TB_M_USER_ROLE;
+
+CREATE TABLE TB_M_USER_ROLE
+(
+  USER_ID        VARCHAR(36)                    NOT NULL,
+  ASSIGNED_ROLE  VARCHAR(100)                   NOT NULL,
+  CONSTRAINT IX_PK_USER_ROLE_01 PRIMARY KEY (USER_ID, ASSIGNED_ROLE)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/TB_M_USER.sql
+DROP TABLE IF EXISTS TB_M_USER;
+
+CREATE TABLE TB_M_USER
+(
+  USER_ID        VARCHAR(36)                    NOT NULL,
+  EMP_NO         VARCHAR(50),
+  EMAIL          VARCHAR(100),
+  TEL_NO         VARCHAR(100),
+  FIRST_NAME     VARCHAR(100)                   NOT NULL,
+  LAST_NAME      VARCHAR(100)                   NOT NULL,
+  COMPANY        VARCHAR(100),
+  DIVISION       VARCHAR(100),
+  DEPARTMENT     VARCHAR(100),
+  SECTION        VARCHAR(100),
+  FULL_NAME      VARCHAR(201)                   NOT NULL,
+  SC2_USER_ID    VARCHAR(36),
+  CB             VARCHAR(36)                    NOT NULL,
+  CD             DATETIME                       NOT NULL,
+  MB             VARCHAR(36)                    NOT NULL,
+  MD             DATETIME                       NOT NULL,
+  CONSTRAINT IX_PK_M_USER_01 PRIMARY KEY (USER_ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/TB_R_SECRET.sql
+DROP TABLE IF EXISTS TB_R_SECRET;
+
+CREATE TABLE TB_R_SECRET
+(
+  TICKET_ID     VARCHAR(32)                     DEFAULT (REPLACE(UUID(),'-','')) NOT NULL,
+  USER_ID       VARCHAR(36)                     NOT NULL,
+  NAME          VARCHAR(100)                    NOT NULL,
+  USER_INFO     LONGTEXT                        NOT NULL,
+  USER_ROLES    LONGTEXT                        NOT NULL,
+  SYSTEM_INFO   LONGTEXT,
+  CREATED_DATE  DATETIME                        NOT NULL,
+  CONSTRAINT IX_PK_SECRET_01 PRIMARY KEY (TICKET_ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Note: Oracle SYS_GUID() returns a 16-byte RAW displayed as 32 hex chars.
+-- MySQL equivalent: REPLACE(UUID(),'-','') produces a 32-char hex string.
+-- Oracle CLOB -> MySQL LONGTEXT.
+
+-- Source: Database/App/Table/TB_R_STORE_FILE.sql
+DROP TABLE IF EXISTS TB_R_STORE_FILE;
+
+CREATE TABLE TB_R_STORE_FILE
+(
+  FILE_ID     BIGINT                            NOT NULL,
+  FILE_NAME   VARCHAR(255)                      NOT NULL,
+  FILE_DATA   LONGBLOB                          NOT NULL,
+  CREATED_BY  VARCHAR(36)                       NOT NULL,
+  CREATED_DT  DATETIME                          NOT NULL,
+  CONSTRAINT IX_PK_STORE_FILE_01 PRIMARY KEY (FILE_ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Note: Oracle BLOB -> MySQL LONGBLOB.
+
+-- Source: Database/App/Table/TB_S_DL_BB11_STOCK_ADJUSTMENT_OF_IN_HOUSE_PART.sql
+DROP TABLE IF EXISTS TB_S_DL_BB11_STOCK_ADJUSTMENT_OF_IN_HOUSE_PART;
+
+CREATE TABLE TB_S_DL_BB11_STOCK_ADJUSTMENT_OF_IN_HOUSE_PART
+(
+  APP_ID                       VARCHAR(10),
+  RECORD_ID                    DECIMAL(7),
+  COMPANY_CODE                 VARCHAR(8),
+  PLANT_CODE                   VARCHAR(1),
+  MARU_CODE                    VARCHAR(1),
+  PHYSICAL_COUNT_DATE          DATETIME,
+  PART_NUMBER                  VARCHAR(14),
+  DOCUMENT_NO                  VARCHAR(10),
+  PHYSICAL_COUNT_QUANTITY      DECIMAL(7),
+  PHYSICAL_COUNT_POSTING_DATE  DATETIME,
+  NORMAL_CANCEL_FLAG           VARCHAR(1),
+  REASON                       VARCHAR(255),
+  P_SMS_CODE                   VARCHAR(12),
+  UOM                          VARCHAR(10)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- ============================================================
+-- Tables: LPEF Domain (Database/App/Table/lpeff/)
+-- ============================================================
+
+-- Source: Database/App/Table/lpeff/TB_M_BMH.sql
+DROP TABLE IF EXISTS TB_M_BMH;
+CREATE TABLE TB_M_BMH (
+    ID BIGINT NOT NULL AUTO_INCREMENT,
+    EFF_FROM VARCHAR(6) NOT NULL,
+    EFF_TO   VARCHAR(6) NOT NULL,
+    COST_CENTER VARCHAR(8) NOT NULL,
+    CAR_FAMILY_CD VARCHAR(6) NOT NULL DEFAULT '',
+    KATASHIKI_PROD_PART_NO VARCHAR(25) NOT NULL,
+    EXTERIOR_COLOR VARCHAR(5) NOT NULL DEFAULT '',
+    TYPE_SUFFIX VARCHAR(3) NOT NULL,
+    ORDER_TYPE VARCHAR(1) NOT NULL DEFAULT '',
+    BENCHMARK_HOUR DECIMAL(8,2) NOT NULL,
+    IS_ACTIVE CHAR(1) NOT NULL DEFAULT 'Y',
+    SENT_TO_SAP_DT DATETIME NULL DEFAULT NULL,
+    CREATE_BY       VARCHAR(36)   NOT NULL,
+    CREATE_DT       DATETIME      NOT NULL,
+    UPDATE_BY       VARCHAR(36)   NOT NULL,
+    UPDATE_DT       DATETIME      NOT NULL,
+    UNIQUE KEY IX_UK_M_BMH_01 (
+        EFF_FROM, COST_CENTER, KATASHIKI_PROD_PART_NO, TYPE_SUFFIX ,
+        EXTERIOR_COLOR, ORDER_TYPE ,CAR_FAMILY_CD
+ ),
+    KEY IX_NK_M_BMH_01 (EFF_TO, EFF_FROM),
+    KEY IX_NK_M_BMH_02 (TYPE_SUFFIX),
+    KEY IX_NK_M_BMH_03 (COST_CENTER, KATASHIKI_PROD_PART_NO, TYPE_SUFFIX, EXTERIOR_COLOR, CAR_FAMILY_CD, EFF_FROM, EFF_TO),
+    CONSTRAINT IX_PK_M_BMH_01 PRIMARY KEY (ID)
+)ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_M_CALENDAR.sql
+DROP TABLE IF EXISTS TB_M_CALENDAR;
+
+CREATE TABLE TB_M_CALENDAR
+(
+  PLANT                     VARCHAR(3)                    NOT NULL,
+  CALENDAR_DT               DATE                          NOT NULL,
+  SHIFT_1                   VARCHAR(1)                    NOT NULL,
+  SHIFT_2                   VARCHAR(1)                    NOT NULL,
+  SHIFT_3                   VARCHAR(1)                    NOT NULL,
+  WEEK_NO                   DECIMAL(1),
+  PEFF_MONTHLY              VARCHAR(1),
+  CREATE_BY                 VARCHAR(36)                   NOT NULL,
+  CREATE_DT                 DATETIME                      NOT NULL,
+  UPDATE_BY                 VARCHAR(36)                   NOT NULL,
+  UPDATE_DT                 DATETIME                      NOT NULL,
+  CONSTRAINT IX_PK_M_CALENDAR_01 PRIMARY KEY (PLANT,CALENDAR_DT)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_M_COMPANY_DEFINITION.sql
+DROP TABLE IF EXISTS `TB_M_COMPANY_DEFINITION`;
+CREATE TABLE IF NOT EXISTS `TB_M_COMPANY_DEFINITION` (
+  `COMPANY_CD` VARCHAR(10) NOT NULL,
+  `PLANT` VARCHAR(3),
+  `DEPARTMENT` VARCHAR(2),
+  `SHOP` VARCHAR(10),
+  `DEFINITION_TYPE` VARCHAR(10),
+  `DEFINITION` VARCHAR(100) NOT NULL,
+  `REMARK` VARCHAR(100) NOT NULL,
+  `SEQ_NO` DECIMAL(3) NOT NULL,
+  `COLOR_CD` VARCHAR(20),
+  `CREATE_BY` VARCHAR(50) NOT NULL,
+  `CREATE_DT` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATE_BY` VARCHAR(50) NOT NULL,
+  `UPDATE_DT` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`COMPANY_CD`,`PLANT`,`DEPARTMENT`,`SHOP`),
+  KEY `IX_M_COMPANY_DEFINITION` (`COMPANY_CD`,`PLANT`,`DEPARTMENT`,`SHOP`)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_M_COST_CENTER_CONVERT.sql
+DROP TABLE IF EXISTS TB_M_COST_CENTER_CONVERT;
+
+CREATE TABLE TB_M_COST_CENTER_CONVERT
+(
+  ID                BIGINT NOT NULL AUTO_INCREMENT,
+  EFF_FROM          VARCHAR(6)          NOT NULL,
+  EFF_TO            VARCHAR(6)          NOT NULL,
+  PROD_PART_FROM    VARCHAR(25)   NOT NULL,
+  TYPE_SUFFIX_FROM  VARCHAR(3)   NOT NULL,
+  COST_CENTER_FROM  VARCHAR(8)    NOT NULL,
+  PROD_PART_TO      VARCHAR(25)   NOT NULL,
+  TYPE_SUFFIX_TO    VARCHAR(3)   NOT NULL,
+  COST_CENTER_TO    VARCHAR(8)    NOT NULL,
+  CREATE_BY         VARCHAR(36)   NOT NULL,
+  CREATE_DT         DATETIME      NOT NULL,
+  UPDATE_BY         VARCHAR(36)   NOT NULL,
+  UPDATE_DT         DATETIME      NOT NULL,
+  -- 8-field key: one From key (EFF_FROM/EFF_TO/PROD_PART_FROM/TYPE_SUFFIX_FROM/COST_CENTER_FROM)
+  -- carries many To rows (self-reference Parent + Child rows), so the To triple is part of the key.
+  UNIQUE KEY IX_UK_M_COST_CENTER_CONVERT_01 (EFF_FROM, EFF_TO, PROD_PART_FROM, TYPE_SUFFIX_FROM, COST_CENTER_FROM, PROD_PART_TO, TYPE_SUFFIX_TO, COST_CENTER_TO),
+  CONSTRAINT IX_PK_M_COST_CENTER_CONVERT_01 PRIMARY KEY (ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_M_COST_CENTER.sql
+DROP TABLE IF EXISTS TB_M_COST_CENTER;
+
+CREATE TABLE TB_M_COST_CENTER
+(
+  ID              BIGINT NOT NULL AUTO_INCREMENT,
+  EFF_FROM        VARCHAR(6)    NOT NULL,
+  EFF_TO          VARCHAR(6)    NOT NULL,
+  COST_CENTER     VARCHAR(8)    NOT NULL,
+  LINE_CD         VARCHAR(8)    NOT NULL,
+  SHIFT           VARCHAR(1)    NOT NULL,
+  DESCRIPTION     VARCHAR(60)   NOT NULL,
+  SHOP            VARCHAR(10)   NOT NULL,
+  DEPARTMENT      VARCHAR(2)    NOT NULL,
+  PLANT           VARCHAR(3)    NOT NULL,
+  CREATE_BY       VARCHAR(36)   NOT NULL,
+  CREATE_DT       DATETIME      NOT NULL,
+  UPDATE_BY       VARCHAR(36)   NOT NULL,
+  UPDATE_DT       DATETIME      NOT NULL,
+  VERSION_NO      INT           NOT NULL DEFAULT 0,
+  UNIQUE KEY IX_UK_M_COST_CENTER_01 (EFF_FROM, COST_CENTER, SHIFT),
+  CONSTRAINT IX_PK_M_COST_CENTER_01 PRIMARY KEY (ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_M_GPQ_PART_CONVERT_PART_RATIO.sql
+DROP TABLE IF EXISTS TB_M_GPQ_PART_CONVERT_PART_RATIO;
+
+CREATE TABLE TB_M_GPQ_PART_CONVERT_PART_RATIO
+(
+  ID          BIGINT         NOT NULL AUTO_INCREMENT,
+  H_ID        BIGINT         NOT NULL,
+  PROD_PART_NO   VARCHAR(25)    NOT NULL,
+  RATIO       DECIMAL(5,2)   NOT NULL,
+  CONSTRAINT CK_TB_M_GPQ_PART_CONVERT_PART_RATIO_01 CHECK (RATIO >= 0.00 AND RATIO <= 100.00),
+  CONSTRAINT IX_PK_M_GPQ_PART_CONVERT_PART_RATIO_01 PRIMARY KEY (ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_M_GPQ_PART_CONVERT.sql
+DROP TABLE IF EXISTS TB_M_GPQ_PART_CONVERT;
+
+CREATE TABLE TB_M_GPQ_PART_CONVERT
+(
+  ID           BIGINT        NOT NULL AUTO_INCREMENT,
+  EFF_DT       VARCHAR(6)    NOT NULL,
+  PART_CD      VARCHAR(20)   NOT NULL,
+  COST_CENTER  VARCHAR(8)    NOT NULL,
+  TYPE_SUFFIX      VARCHAR(3)    NOT NULL,
+  CREATE_BY    VARCHAR(36)   NOT NULL,
+  CREATE_DT    DATETIME      NOT NULL,
+  UPDATE_BY    VARCHAR(36)   NOT NULL,
+  UPDATE_DT    DATETIME      NOT NULL,
+  VERSION_NO   INT           NOT NULL DEFAULT 0,
+  CONSTRAINT IX_PK_M_GPQ_PART_CONVERT_01 PRIMARY KEY (ID),
+  CONSTRAINT IX_UK_M_GPQ_PART_CONVERT_01 UNIQUE KEY (EFF_DT, PART_CD, COST_CENTER, TYPE_SUFFIX)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_M_TRACKING_POINT.sql
+DROP TABLE IF EXISTS TB_M_TRACKING_POINT;
+CREATE TABLE IF NOT EXISTS TB_M_TRACKING_POINT (
+  ID BIGINT NOT NULL AUTO_INCREMENT,
+  TRACKING_POINT VARCHAR(3) NOT NULL,
+  KATASHIKI_PROD_PART_NO VARCHAR(25) NOT NULL,
+  IDENT_LINE VARCHAR(5) NOT NULL,
+  COST_CENTER VARCHAR(8) NOT NULL,
+  TRACKING_POINT_DESC VARCHAR(50) NOT NULL,
+  ACTIVE_FLAG CHAR(1) NOT NULL DEFAULT 'Y',
+  CREATE_BY VARCHAR(36) NOT NULL,
+  CREATE_DT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UPDATE_BY VARCHAR(36) NOT NULL,
+  UPDATE_DT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY IX_UK_M_TRACKING_POINT_01 (
+    TRACKING_POINT,
+    KATASHIKI_PROD_PART_NO,
+    IDENT_LINE,
+    COST_CENTER
+  ),
+  CONSTRAINT IX_PK_M_TRACKING_POINT_01 PRIMARY KEY (ID)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_P_AWH_WF.sql
+DROP TABLE IF EXISTS `TB_P_AWH_WF`;
+CREATE TABLE IF NOT EXISTS `TB_P_AWH_WF` (
+  `AWH_DT` DATE,
+  `COST_CENTER` VARCHAR(8),
+  `SHIFT` CHAR(1),
+  `ALL_STAFF` DECIMAL(8),
+  `ATTENDANTS` DECIMAL(8),
+  `PRODUCTION_TIME` DECIMAL(7,2),
+  `BREAK_TIME` DECIMAL(7,2),
+  `PREPARE_TIME` DECIMAL(7,2),
+  `KAIZEN_TIME_5S` DECIMAL(7,2),
+  `TRAINING_TIME` DECIMAL(7,2),
+  `STOP_TIME_BY_OWNER` DECIMAL(7,2),
+  `STOP_TIME_BY_OUTSIDE_LINE` DECIMAL(7,2),
+  `STOP_TIME_BY_OUTSIDE_SHOP` DECIMAL(7,2),
+  `FILE_NAME` VARCHAR(255)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_P_GPQ_CBU_ORIGINAL.sql
+DROP TABLE IF EXISTS TB_P_GPQ_CBU_ORIGINAL;
+
+CREATE TABLE TB_P_GPQ_CBU_ORIGINAL
+(
+  PROD_SUFFIX_RAW         VARCHAR(3),
+  PROD_SUFFIX             VARCHAR(3),
+  URN                     VARCHAR(10),
+  LINE_OFF_DATE           DATE,
+  LINE_OFF_TIME           TIME,
+  PRODUCTION_DATE         DATE,
+  KATASHIKI               VARCHAR(20),
+  BODY_TYPE               VARCHAR(10),
+  TRACKING_POINT          VARCHAR(1),
+  SHIFT                   VARCHAR(1),
+  SPEC_INSTRUCTION_SHEET  VARCHAR(2),
+  DIGIT_SPEC_200          VARCHAR(200),
+  PRODUCTION_PLANT        VARCHAR(1),
+  TYPE                    DECIMAL(3),
+  IDENT_LINE              VARCHAR(2),
+  COPY_VHD_FLAG           VARCHAR(1),
+  EXTERIOR_COLOR_SUFFIX   VARCHAR(4),
+  ORDER_TYPE              VARCHAR(1),
+  DESTINATION_CD        VARCHAR(5),
+  CAR_FAMILY_CD         VARCHAR(4),
+  SHOP                    VARCHAR(50),
+  DEPARTMENT              VARCHAR(50),
+  PLANT                   VARCHAR(50),
+  SHIFT_CD                VARCHAR(10),
+  COST_CENTER             VARCHAR(20),
+  FILE_NAME               VARCHAR(255)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_P_GPQ_PART_ORIGINAL.sql
+DROP TABLE IF EXISTS TB_P_GPQ_PART_ORIGINAL;
+
+CREATE TABLE TB_P_GPQ_PART_ORIGINAL
+(
+  PERIOD        VARCHAR(8),
+  COST_CENTER   VARCHAR(25),
+  SHIFT_NO         VARCHAR(1),
+  PART_CD_FROM  VARCHAR(20),
+  GPQ           VARCHAR(8),
+  SPOIL_PART    VARCHAR(8),
+  SPOIL_MAT     VARCHAR(8),
+  RECYCLE       VARCHAR(8),
+  FREE_SHOT     VARCHAR(8),
+  TYPE_SUFFIX        VARCHAR(3),
+  TYPE          VARCHAR(1),
+  CANCEL_FLAG   VARCHAR(1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_AWH_WF.sql
+DROP TABLE IF EXISTS `TB_R_AWH_WF`;
+CREATE TABLE IF NOT EXISTS `TB_R_AWH_WF` (
+  `AWH_DT` DATE NOT NULL,
+  `PLANT` VARCHAR(3) NOT NULL,
+  `DEPARTMENT` VARCHAR(2) NOT NULL,
+  `SHOP` VARCHAR(10) NOT NULL,
+  `COST_CENTER` VARCHAR(8) NOT NULL,
+  `SHIFT` CHAR(1) NOT NULL,
+  `ALL_STAFF` DECIMAL(8) NOT NULL DEFAULT 0,
+  `ATTENDANTS` DECIMAL(8) NOT NULL DEFAULT 0,
+  `PRODUCTION_TIME` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `BREAK_TIME` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `PREPARE_TIME` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `KAIZEN_TIME_5S` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `TRAINING_TIME` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `STOP_TIME_BY_OWNER` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `STOP_TIME_BY_OUTSIDE_LINE` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `STOP_TIME_BY_OUTSIDE_SHOP` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `CREATE_BY` VARCHAR(36) NOT NULL,
+  `CREATE_DT` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATE_BY` VARCHAR(36) NOT NULL,
+  `UPDATE_DT` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`AWH_DT`, `COST_CENTER`, `SHIFT`),
+  KEY `IX_R_AWH_WF_CC_DT` (`COST_CENTER`, `AWH_DT`),
+  KEY `IX_R_AWH_WF_ORG` (`PLANT`, `SHOP`, `DEPARTMENT`)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_R_AWH.sql
+DROP TABLE IF EXISTS TB_R_AWH;
+
+CREATE TABLE TB_R_AWH
+(
+  ID                        BIGINT NOT NULL AUTO_INCREMENT,
+  PERIOD                    DATE                          NOT NULL,
+  COST_CENTER               VARCHAR(8)                    NOT NULL,
+  SHIFT                     VARCHAR(1)                    NOT NULL,
+  ALL_STAFF                 DECIMAL(7)                  NOT NULL DEFAULT 0,
+  ATTENDANTS                DECIMAL(7)                  NOT NULL DEFAULT 0,
+  PERCENT_ATTENDANCE        DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  TOTAL_WORKING_TIME        DECIMAL(15,2)                  NOT NULL DEFAULT 0.00,
+  PRODUCTION_TIME           DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  BREAK_TIME                DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  PREPARE_TIME              DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  KAIZEN_TIME_5S            DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  TRAINING_TIME             DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  TOTAL_STOP_TIME           DECIMAL(8,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OWNER        DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OUTSIDE_LINE DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OUTSIDE_SHOP DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  CAL_FLAG                  VARCHAR(1)                    NOT NULL DEFAULT 'N',
+  CREATE_BY                 VARCHAR(36)                   NOT NULL,
+  CREATE_DT                 DATETIME                      NOT NULL,
+  UPDATE_BY                 VARCHAR(36)                   NOT NULL,
+  UPDATE_DT                 DATETIME                      NOT NULL,
+  VERSION_NO                INT                           NOT NULL DEFAULT 0,  
+  CONSTRAINT IX_UK_R_AWH_01 UNIQUE (PERIOD, COST_CENTER, SHIFT),
+  CONSTRAINT IX_PK_R_AWH_01 PRIMARY KEY (ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_EARN_HOUR.sql
+DROP TABLE IF EXISTS TB_R_EARN_HOUR;
+
+CREATE TABLE TB_R_EARN_HOUR
+(
+  EARN_HOUR_ID            BIGINT                         NOT NULL AUTO_INCREMENT,
+  PERIOD                  DATE                           NOT NULL,
+  COST_CENTER             VARCHAR(8)                     NOT NULL,
+  PLANT                     VARCHAR(3),
+  DEPARTMENT                VARCHAR(2),
+  SHOP                      VARCHAR(10),
+  GPQ_TYPE           VARCHAR(1)      NOT NULL,
+  SHIFT                   VARCHAR(1)                     NOT NULL,
+  CAR_FAMILY_CD           VARCHAR(6)                     NOT NULL DEFAULT '',
+  KATASHIKI_PROD_PART_NO  VARCHAR(25)                    NOT NULL,
+  TYPE_SUFFIX             VARCHAR(3)                     NOT NULL,
+  ORDER_TYPE              VARCHAR(1)                     NOT NULL DEFAULT '',
+  EXTERIOR_COLOR          VARCHAR(5)                     NOT NULL DEFAULT '',
+  GOOD_PARTS_QUANTITY     DECIMAL(8)                   NOT NULL DEFAULT 0,
+  BENCHMARK_HOUR          DECIMAL(7,2)                   NOT NULL DEFAULT 0.00,
+  EARNED_HOUR             DECIMAL(17,5)                  NOT NULL DEFAULT 0.00000,
+  CREATE_BY               VARCHAR(36)                    NOT NULL,
+  CREATE_DT               DATETIME                       NOT NULL,
+  UPDATE_BY               VARCHAR(36)                    NOT NULL,
+  UPDATE_DT               DATETIME                       NOT NULL,
+  CONSTRAINT IX_PK_R_EARN_HOUR_01 PRIMARY KEY (EARN_HOUR_ID),
+  CONSTRAINT IX_UK_R_EARN_HOUR_01 UNIQUE (PERIOD, COST_CENTER, SHIFT, CAR_FAMILY_CD, KATASHIKI_PROD_PART_NO, TYPE_SUFFIX, ORDER_TYPE, EXTERIOR_COLOR)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_GPQ_CBU_MANUAL.sql
+DROP TABLE IF EXISTS TB_R_GPQ_CBU_MANUAL;
+
+CREATE TABLE TB_R_GPQ_CBU_MANUAL
+(
+  PERIOD             DATE          NOT NULL,
+  COST_CENTER        VARCHAR(8)    NOT NULL,
+  SHIFT              VARCHAR(1)    NOT NULL,
+  CAR_FAMILY_CD      VARCHAR(6)    NOT NULL ,
+  KATASHIKI_PROD_PART_NO  VARCHAR(25)   NOT NULL,
+  TYPE_SUFFIX        VARCHAR(3)    NOT NULL,
+  ORDER_TYPE         VARCHAR(1)    NOT NULL ,
+  EXTERIOR_COLOR     VARCHAR(5),
+  GPQ                DECIMAL(8)    NOT NULL,
+  GPQ_UPLOAD         DECIMAL(12)   NOT NULL,
+  SUM_FLAG           VARCHAR(1)    NOT NULL DEFAULT 'N',
+  CREATE_BY          VARCHAR(36)   NOT NULL,
+  CREATE_DT          DATETIME      NOT NULL,
+  UPDATE_BY          VARCHAR(36)   NOT NULL,
+  UPDATE_DT          DATETIME      NOT NULL,
+  UNIQUE KEY UQ_GPQ_CBU_MAN_BK (PERIOD, COST_CENTER, SHIFT, CAR_FAMILY_CD, KATASHIKI_PROD_PART_NO, TYPE_SUFFIX, ORDER_TYPE, EXTERIOR_COLOR),
+  KEY IX_GPQ_CBU_MAN_01 (PERIOD, COST_CENTER, SHIFT),
+  KEY IX_GPQ_CBU_MAN_02 (COST_CENTER, PERIOD),
+  KEY IX_GPQ_CBU_MAN_03 (PERIOD, TYPE_SUFFIX)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_GPQ_CBU_ORIGINAL.sql
+DROP TABLE IF EXISTS TB_R_GPQ_CBU_ORIGINAL;
+
+CREATE TABLE TB_R_GPQ_CBU_ORIGINAL
+(
+  PERIOD             DATE          NOT NULL,
+  COST_CENTER        VARCHAR(8)    NOT NULL,
+  SHIFT              VARCHAR(1)    NOT NULL,
+  CAR_FAMILY_CD      VARCHAR(6)    NOT NULL ,
+  KATASHIKI_PROD_PART_NO  VARCHAR(25)   NOT NULL,
+  TYPE_SUFFIX        VARCHAR(3)    NOT NULL,
+  ORDER_TYPE         VARCHAR(1)    NOT NULL ,
+  EXTERIOR_COLOR     VARCHAR(5)    NOT NULL ,
+  GPQ                DECIMAL(8),
+  SUM_FLAG           VARCHAR(1)    NOT NULL DEFAULT 'N',
+  CREATE_BY          VARCHAR(36)   NOT NULL,
+  CREATE_DT          DATETIME      NOT NULL,
+  UPDATE_BY          VARCHAR(36)   NOT NULL,
+  UPDATE_DT          DATETIME      NOT NULL,
+  UNIQUE KEY UQ_GPQ_CBU_ORI_BK (PERIOD, COST_CENTER, SHIFT, CAR_FAMILY_CD, KATASHIKI_PROD_PART_NO, TYPE_SUFFIX, ORDER_TYPE, EXTERIOR_COLOR),
+  KEY IX_GPQ_CBU_ORI_01 (PERIOD, COST_CENTER, SHIFT),
+  KEY IX_GPQ_CBU_ORI_02 (COST_CENTER, PERIOD),
+  KEY IX_GPQ_CBU_ORI_03 (PERIOD, TYPE_SUFFIX)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_GPQ_PART_MANUAL.sql
+DROP TABLE IF EXISTS TB_R_GPQ_PART_MANUAL;
+
+CREATE TABLE TB_R_GPQ_PART_MANUAL
+(
+  PERIOD             DATE          NOT NULL,
+  COST_CENTER        VARCHAR(8)    NOT NULL,
+  SHIFT              VARCHAR(1)    NOT NULL,
+  KATASHIKI_PROD_PART_NO  VARCHAR(25)   NOT NULL,
+  TYPE_SUFFIX        VARCHAR(3)    NOT NULL,
+  GPQ                DECIMAL(8),
+  SUM_FLAG           VARCHAR(1)    NOT NULL DEFAULT 'N',
+  SHOP               VARCHAR(255),
+  DEPARTMENT         VARCHAR(255),
+  PLANT              VARCHAR(255),
+  CREATE_BY          VARCHAR(36)   NOT NULL,
+  CREATE_DT          DATETIME      NOT NULL,
+  UPDATE_BY          VARCHAR(36)   NOT NULL,
+  UPDATE_DT          DATETIME      NOT NULL,
+  KEY IX_GPQ_PART_MAN_01 (PERIOD, SHIFT, COST_CENTER, KATASHIKI_PROD_PART_NO, TYPE_SUFFIX)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_GPQ_PART_ORIGINAL.sql
+DROP TABLE IF EXISTS TB_R_GPQ_PART_ORIGINAL;
+
+CREATE TABLE TB_R_GPQ_PART_ORIGINAL
+(
+  PERIOD            DATE          NOT NULL,
+  COST_CENTER_FROM  VARCHAR(25),
+  SHIFT_NO          VARCHAR(1),
+  TYPE_SUFFIX_FROM       VARCHAR(3),
+  GPQ_ORIGINAL      DECIMAL(12)   NOT NULL,
+  PART_CD_FROM      VARCHAR(20),
+  GPQ_TYPE          VARCHAR(1),
+  -- Retrieved from MASTER
+  SHIFT             VARCHAR(1)    NOT NULL,
+  PROD_NO_FROM      VARCHAR(25)   NOT NULL,
+  SHOP              VARCHAR(255),
+  DEPARTMENT        VARCHAR(255),
+  PLANT             VARCHAR(255),
+  -- Convert
+  COST_CENTER_TO    VARCHAR(8)    NOT NULL,
+  PROD_PART_TO        VARCHAR(25)   NOT NULL,
+  TYPE_SUFFIX_TO    VARCHAR(3)    NOT NULL,
+  GPQ               DECIMAL(8)   NOT NULL,
+  SUM_FLAG          VARCHAR(1)    NOT NULL DEFAULT 'N',
+  CREATE_BY         VARCHAR(36)   NOT NULL,
+  CREATE_DT         DATETIME      NOT NULL,
+  UPDATE_BY         VARCHAR(36)   NOT NULL,
+  UPDATE_DT         DATETIME      NOT NULL,
+  UNIQUE KEY UQ_GPQ_PART_ORI_BK (PERIOD, COST_CENTER_FROM, SHIFT, TYPE_SUFFIX_FROM, PART_CD_FROM, COST_CENTER_TO, PROD_PART_TO, TYPE_SUFFIX_TO, GPQ_TYPE)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_GPQ_TOTAL_PEFF.sql
+DROP TABLE IF EXISTS TB_R_GPQ_TOTAL_PEFF;
+
+CREATE TABLE TB_R_GPQ_TOTAL_PEFF
+(
+  GPQ_TYPE           VARCHAR(1)      NOT NULL,
+  PERIOD             DATE            NOT NULL,
+  COST_CENTER        VARCHAR(8)      NOT NULL,
+  SHIFT              VARCHAR(1)      NOT NULL,
+  CAR_FAMILY_CD      VARCHAR(6)      NOT NULL ,
+  SHOP              VARCHAR(10)      NOT NULL ,
+  DEPARTMENT        VARCHAR(2)       NOT NULL,
+  PLANT             VARCHAR(3)       NOT NULL,
+  KATASHIKI_PROD_PART_NO  VARCHAR(25)     NOT NULL,
+  TYPE_SUFFIX               VARCHAR(3)      NOT NULL,
+  ORDER_TYPE         VARCHAR(1)      NOT NULL ,
+  EXT_COLOR          VARCHAR(5)      NOT NULL ,
+  ORIGINAL_GPQ       DECIMAL(8)    NULL ,
+  MANUAL_GPQ         DECIMAL(8)    NULL ,
+  TOTAL_GPQ          DECIMAL(8)   NOT NULL ,
+  MANUAL_BY          VARCHAR(36)     NULL,
+  MANUAL_DT          DATETIME        NULL,
+  CREATE_BY          VARCHAR(36)     NOT NULL,
+  CREATE_DT          DATETIME        NOT NULL,
+  UPDATE_BY          VARCHAR(36)     NOT NULL,
+  UPDATE_DT          DATETIME        NOT NULL,
+  CONSTRAINT IX_PK_R_GPQ_TOTAL_PEFF_01 PRIMARY KEY (GPQ_TYPE, PERIOD, COST_CENTER, SHIFT, CAR_FAMILY_CD, KATASHIKI_PROD_PART_NO, TYPE_SUFFIX, ORDER_TYPE, EXT_COLOR)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_GPQ_TOTAL.sql
+DROP TABLE IF EXISTS TB_R_GPQ_TOTAL;
+
+CREATE TABLE TB_R_GPQ_TOTAL
+(
+  GPQ_TYPE           VARCHAR(1)      NOT NULL,
+  PERIOD             DATE            NOT NULL,
+  COST_CENTER        VARCHAR(8)      NOT NULL,
+  SHIFT              VARCHAR(1)      NOT NULL,
+  CAR_FAMILY_CD      VARCHAR(6)      NOT NULL ,
+  SHOP              VARCHAR(10)      NOT NULL ,
+  DEPARTMENT        VARCHAR(2)       NOT NULL,
+  PLANT             VARCHAR(3)       NOT NULL,
+  KATASHIKI_PROD_PART_NO  VARCHAR(25)     NOT NULL,
+  TYPE_SUFFIX        VARCHAR(3)      NOT NULL,
+  ORDER_TYPE         VARCHAR(1)      NOT NULL ,
+  EXT_COLOR          VARCHAR(5)      NOT NULL ,
+  ORIGINAL_GPQ       DECIMAL(8)    NULL ,
+  MANUAL_GPQ         DECIMAL(8)    NULL ,
+  TOTAL_GPQ          DECIMAL(8)   NOT NULL ,
+  MANUAL_BY          VARCHAR(36)     NULL,
+  MANUAL_DT          DATETIME        NULL,
+  CREATE_BY          VARCHAR(36)     NOT NULL,
+  CREATE_DT          DATETIME        NOT NULL,
+  UPDATE_BY          VARCHAR(36)     NOT NULL,
+  UPDATE_DT          DATETIME        NOT NULL,
+  CONSTRAINT IX_PK_R_GPQ_TOTAL_01 PRIMARY KEY (GPQ_TYPE, PERIOD, COST_CENTER, SHIFT, CAR_FAMILY_CD, KATASHIKI_PROD_PART_NO, TYPE_SUFFIX, ORDER_TYPE, EXT_COLOR)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_PEFF_MONTHLY.sql
+DROP TABLE IF EXISTS TB_R_PEFF_MONTHLY;
+
+CREATE TABLE TB_R_PEFF_MONTHLY
+(
+  PEFF_MONTH                VARCHAR(6)                    NOT NULL,
+  CLOSE_DT                  DATETIME                      NOT NULL,
+  CONSTRAINT IX_PK_R_PEFF_MONTHLY_01 PRIMARY KEY (PEFF_MONTH)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_R_PEFF_RESULT_DAILY.sql
+DROP TABLE IF EXISTS TB_R_PEFF_RESULT_DAILY;
+
+CREATE TABLE TB_R_PEFF_RESULT_DAILY
+(
+  PERIOD                    DATE                          NOT NULL,
+  PLANT                     VARCHAR(3),
+  DEPARTMENT                VARCHAR(2),
+  SHOP                      VARCHAR(10),
+  COST_CENTER               VARCHAR(10)                   NOT NULL,
+  SHIFT                     VARCHAR(1)                    NOT NULL,
+  DEFINITION                VARCHAR(100),
+  PLANT_SEQ                 DECIMAL(3)                    NOT NULL,
+  ROW_SEQ                   DECIMAL(3),
+  COLOR_CD                  VARCHAR(20),
+  PEFF_RESULT               DECIMAL(6,3)                  NOT NULL DEFAULT 0.000,
+  EARNED_HOUR_RESULT        DECIMAL(17,5)                 NOT NULL DEFAULT 0.00000,
+  AWH_RESULT                DECIMAL(15,2)                 NOT NULL DEFAULT 0.00,
+  GPQ_TOTAL                 DECIMAL(8)                    NOT NULL DEFAULT 0,
+  GPQ_CBU                   DECIMAL(8)                    NOT NULL DEFAULT 0,
+  GPQ_PART                  DECIMAL(8)                    NOT NULL DEFAULT 0,
+  ALL_STAFF                 DECIMAL(8)                    NOT NULL DEFAULT 0,
+  ATTENDANTS                DECIMAL(8)                    NOT NULL DEFAULT 0,
+  PERCENT_ATTENDANCE        DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  PRODUCTION_TIME           DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  BREAK_TIME                DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  PREPARE_TIME              DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  KAIZEN_TIME_5S            DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  TRAINING_TIME             DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  TOTAL_STOP_TIME           DECIMAL(8,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OWNER        DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OUTSIDE_LINE DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OUTSIDE_SHOP DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  CREATE_BY                 VARCHAR(36)                   NOT NULL,
+  CREATE_DT                 DATETIME                      NOT NULL,
+  UPDATE_BY                 VARCHAR(36)                   NOT NULL,
+  UPDATE_DT                 DATETIME                      NOT NULL,
+  CONSTRAINT IX_PK_R_PEFF_RESULT_DAILY_01 PRIMARY KEY (PERIOD, COST_CENTER, SHIFT)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_PEFF_RESULT_MONTHLY.sql
+DROP TABLE IF EXISTS TB_R_PEFF_RESULT_MONTHLY;
+
+CREATE TABLE TB_R_PEFF_RESULT_MONTHLY
+(
+  PERIOD                    VARCHAR(6)                    NOT NULL,
+  PLANT                     VARCHAR(3),
+  DEPARTMENT                VARCHAR(2),
+  SHOP                      VARCHAR(10),
+  COST_CENTER               VARCHAR(10)                   NOT NULL,
+  SHIFT                     VARCHAR(1)                    NOT NULL,
+  DEFINITION                VARCHAR(100),
+  PLANT_SEQ                 DECIMAL(3)                    NOT NULL,
+  ROW_SEQ                   DECIMAL(3),
+  COLOR_CD                  VARCHAR(20),
+  PEFF_RESULT               DECIMAL(6,3)                  NOT NULL DEFAULT 0.000,
+  EARNED_HOUR_RESULT        DECIMAL(17,5)                 NOT NULL DEFAULT 0.00000,
+  AWH_RESULT                DECIMAL(15,2)                 NOT NULL DEFAULT 0.00,
+  GPQ_TOTAL                 DECIMAL(8)                    NOT NULL DEFAULT 0,
+  GPQ_CBU                   DECIMAL(8)                    NOT NULL DEFAULT 0,
+  GPQ_PART                  DECIMAL(8)                    NOT NULL DEFAULT 0,
+  ALL_STAFF                 DECIMAL(8)                    NOT NULL DEFAULT 0,
+  ATTENDANTS                DECIMAL(8)                    NOT NULL DEFAULT 0,
+  PERCENT_ATTENDANCE        DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  PRODUCTION_TIME           DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  BREAK_TIME                DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  PREPARE_TIME              DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  KAIZEN_TIME_5S            DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  TRAINING_TIME             DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  TOTAL_STOP_TIME           DECIMAL(8,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OWNER        DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OUTSIDE_LINE DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OUTSIDE_SHOP DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  CREATE_BY                 VARCHAR(36)                   NOT NULL,
+  CREATE_DT                 DATETIME                      NOT NULL,
+  UPDATE_BY                 VARCHAR(36)                   NOT NULL,
+  UPDATE_DT                 DATETIME                      NOT NULL,
+  CONSTRAINT IX_PK_R_PEFF_RESULT_MONTHLY_01 PRIMARY KEY (PERIOD, COST_CENTER, SHIFT)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_PEFF_RESULT_WEEKLY.sql
+DROP TABLE IF EXISTS TB_R_PEFF_RESULT_WEEKLY;
+
+CREATE TABLE TB_R_PEFF_RESULT_WEEKLY
+(
+  WEEK_NO                   DECIMAL(1)                    NOT NULL,
+  PERIOD_FROM               VARCHAR(6)                    NOT NULL,
+  PERIOD_TO                 VARCHAR(6)                    NOT NULL,
+  PLANT                     VARCHAR(3),
+  DEPARTMENT                VARCHAR(2),
+  SHOP                      VARCHAR(10),
+  COST_CENTER               VARCHAR(10)                   NOT NULL,
+  SHIFT                     VARCHAR(1)                    NOT NULL,
+  DEFINITION                VARCHAR(100),
+  PLANT_SEQ                 DECIMAL(3)                    NOT NULL,
+  ROW_SEQ                   DECIMAL(3),
+  COLOR_CD                  VARCHAR(20),
+  PEFF_RESULT               DECIMAL(6,3)                  NOT NULL DEFAULT 0.000,
+  EARNED_HOUR_RESULT        DECIMAL(17,5)                 NOT NULL DEFAULT 0.00000,
+  AWH_RESULT                DECIMAL(15,2)                 NOT NULL DEFAULT 0.00,
+  GPQ_TOTAL                 DECIMAL(8)                    NOT NULL DEFAULT 0,
+  GPQ_CBU                   DECIMAL(8)                    NOT NULL DEFAULT 0,
+  GPQ_PART                  DECIMAL(8)                    NOT NULL DEFAULT 0,
+  ALL_STAFF                 DECIMAL(8)                    NOT NULL DEFAULT 0,
+  ATTENDANTS                DECIMAL(8)                    NOT NULL DEFAULT 0,
+  PERCENT_ATTENDANCE        DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  PRODUCTION_TIME           DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  BREAK_TIME                DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  PREPARE_TIME              DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  KAIZEN_TIME_5S            DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  TRAINING_TIME             DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  TOTAL_STOP_TIME           DECIMAL(8,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OWNER        DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OUTSIDE_LINE DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  STOP_TIME_BY_OUTSIDE_SHOP DECIMAL(7,2)                  NOT NULL DEFAULT 0.00,
+  CREATE_BY                 VARCHAR(36)                   NOT NULL,
+  CREATE_DT                 DATETIME                      NOT NULL,
+  UPDATE_BY                 VARCHAR(36)                   NOT NULL,
+  UPDATE_DT                 DATETIME                      NOT NULL,
+  CONSTRAINT IX_PK_R_PEFF_RESULT_WEEKLY_01 PRIMARY KEY (WEEK_NO, PERIOD_FROM, PERIOD_TO, COST_CENTER, SHIFT)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_PEFF_TARGET_DAILY.sql
+DROP TABLE IF EXISTS TB_R_PEFF_TARGET_DAILY;
+
+CREATE TABLE TB_R_PEFF_TARGET_DAILY
+(
+  PERIOD                    DATE                          NOT NULL,
+  PLANT                     VARCHAR(3),
+  DEPARTMENT                VARCHAR(2),
+  SHOP                      VARCHAR(10),
+  COST_CENTER               VARCHAR(10)                   NOT NULL,
+  SHIFT                     VARCHAR(1)                    NOT NULL,
+  PEFF_RESULT_TARGET        DECIMAL(6,3)                  NOT NULL DEFAULT 0.000,
+  EARNED_HOUR_TARGET        DECIMAL(17,5)                 NOT NULL DEFAULT 0.00000,
+  AWH_TARGET                DECIMAL(15,2)                 NOT NULL DEFAULT 0.00,
+  CREATE_BY                 VARCHAR(36)                   NOT NULL,
+  CREATE_DT                 DATETIME                      NOT NULL,
+  UPDATE_BY                 VARCHAR(36)                   NOT NULL,
+  UPDATE_DT                 DATETIME                      NOT NULL,
+  CONSTRAINT IX_PK_R_PEFF_TARGET_DAILY_01 PRIMARY KEY (PERIOD, COST_CENTER, SHIFT)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_PEFF_TARGET_MONTHLY.sql
+DROP TABLE IF EXISTS TB_R_PEFF_TARGET_MONTHLY;
+
+CREATE TABLE TB_R_PEFF_TARGET_MONTHLY
+(
+  PERIOD                    VARCHAR(6)                    NOT NULL,
+  PLANT                     VARCHAR(3),
+  DEPARTMENT                VARCHAR(2),
+  SHOP                      VARCHAR(10),
+  COST_CENTER               VARCHAR(10)                   NOT NULL,
+  SHIFT                     VARCHAR(1)                    NOT NULL,
+  PEFF_RESULT_TARGET        DECIMAL(6,3)                  NOT NULL DEFAULT 0.000,
+  EARNED_HOUR_TARGET        DECIMAL(17,5)                 NOT NULL DEFAULT 0.00000,
+  AWH_TARGET                DECIMAL(15,2)                 NOT NULL DEFAULT 0.00,
+  CREATE_BY                 VARCHAR(36)                   NOT NULL,
+  CREATE_DT                 DATETIME                      NOT NULL,
+  UPDATE_BY                 VARCHAR(36)                   NOT NULL,
+  UPDATE_DT                 DATETIME                      NOT NULL,
+  CONSTRAINT IX_PK_R_PEFF_TARGET_MONTHLY_01 PRIMARY KEY (PERIOD, COST_CENTER, SHIFT)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_R_PEFF_TARGET_WEEKLY.sql
+DROP TABLE IF EXISTS TB_R_PEFF_TARGET_WEEKLY;
+
+CREATE TABLE TB_R_PEFF_TARGET_WEEKLY
+(
+  WEEK_NO                   DECIMAL(1)                    NOT NULL,
+  PERIOD_FROM               VARCHAR(6)                    NOT NULL,
+  PERIOD_TO                 VARCHAR(6)                    NOT NULL,
+  PLANT                     VARCHAR(3),
+  DEPARTMENT                VARCHAR(2),
+  SHOP                      VARCHAR(10),
+  COST_CENTER               VARCHAR(10)                   NOT NULL,
+  SHIFT                     VARCHAR(1)                    NOT NULL,
+  PEFF_RESULT_TARGET        DECIMAL(6,3)                  NOT NULL DEFAULT 0.000,
+  EARNED_HOUR_TARGET        DECIMAL(17,5)                 NOT NULL DEFAULT 0.00000,
+  AWH_TARGET                DECIMAL(15,2)                 NOT NULL DEFAULT 0.00,
+  CREATE_BY                 VARCHAR(36)                   NOT NULL,
+  CREATE_DT                 DATETIME                      NOT NULL,
+  UPDATE_BY                 VARCHAR(36)                   NOT NULL,
+  UPDATE_DT                 DATETIME                      NOT NULL,
+  CONSTRAINT IX_PK_R_PEFF_TARGET_WEEKLY_01 PRIMARY KEY (WEEK_NO, PERIOD_FROM, PERIOD_TO, COST_CENTER, SHIFT)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_S_AWH_WF.sql
+DROP TABLE IF EXISTS `TB_S_AWH_WF`;
+CREATE TABLE IF NOT EXISTS `TB_S_AWH_WF` (
+  `RECORD_ID` VARCHAR(7),
+  `AWH_DT` DATE,
+  `COST_CENTER` VARCHAR(8),
+  `SHIFT` CHAR(1),
+  `ALL_STAFF` VARCHAR(7),
+  `ATTENDANTS` VARCHAR(7),
+  `PRODUCTION_TIME` VARCHAR(7),
+  `BREAK_TIME` VARCHAR(7),
+  `PREPARE_TIME` VARCHAR(7),
+  `KAIZEN_TIME_5S` VARCHAR(7),
+  `TRAINING_TIME` VARCHAR(7),
+  `STOP_TIME_BY_OWNER` VARCHAR(7),
+  `STOP_TIME_BY_OUTSIDE_LINE` VARCHAR(7),
+  `STOP_TIME_BY_OUTSIDE_SHOP` VARCHAR(7),
+  `FLAG` VARCHAR(1),
+  `PARKING_FLAG` VARCHAR(1),
+  `FILE_NAME` VARCHAR(255)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_S_BMH.sql
+DROP TABLE IF EXISTS TB_S_BMH;
+CREATE TABLE TB_S_BMH (
+    RECORD_ID BIGINT,
+    EFF_FROM VARCHAR(7),   -- raw "MM/YYYY" text so [Step 2] can validate format itself (matches TB_S_UPLOAD_GPQ_PART_CONVERT.EFF_FROM pattern)
+    EFF_TO   VARCHAR(7),   -- raw "MM/YYYY" text; converted to YYYYMM inside pkg_ul_pef122_benchmark_hour, not at load time
+    COST_CENTER VARCHAR(8),
+    CAR_FAMILY_CD VARCHAR(6),
+    KATASHIKI_PROD_PART_NO VARCHAR(25),
+    EXTERIOR_COLOR VARCHAR(5),
+    TYPE_SUFFIX VARCHAR(3),
+    ORDER_TYPE VARCHAR(1),
+    BENCHMARK_HOUR VARCHAR(10),   -- raw text so [Step 2] can validate format itself (matches TB_S_UPLOAD_GPQ_PART_CONVERT.RATIO pattern); cast to DECIMAL(8,2) with ROUND(..., 2) inside pkg_ul_pef122_benchmark_hour
+    IS_ACTIVE CHAR(1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+-- Source: Database/App/Table/lpeff/TB_S_CALENDAR.sql
+DROP TABLE IF EXISTS TB_S_CALENDAR;
+
+CREATE TABLE TB_S_CALENDAR
+(
+  RECORD_ID                 DECIMAL(10),
+  PLANT                     VARCHAR(3),
+  CALENDAR_DT               DATE,
+  SHIFT_1                   VARCHAR(1),
+  SHIFT_2                   VARCHAR(1),
+  SHIFT_3                   VARCHAR(1),
+  WEEK_NO                   DECIMAL(1),
+  PEFF_MONTHLY              VARCHAR(1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_S_GPQ_CBU_ORIGINAL.sql
+DROP TABLE IF EXISTS TB_S_GPQ_CBU_ORIGINAL;
+
+CREATE TABLE TB_S_GPQ_CBU_ORIGINAL
+(
+  RECORD_ID               VARCHAR(7),
+  PROD_SUFFIX_RAW         VARCHAR(3),
+  PROD_SUFFIX             VARCHAR(3),
+  URN                     VARCHAR(10),
+  LINE_OFF_DT             DATE,
+  LINE_OFF_TIME           TIME,
+  PRODUCTION_DT           DATE,
+  KATASHIKI               VARCHAR(20),
+  BODY_TYPE               VARCHAR(10),
+  TRACKING_POINT          VARCHAR(1),
+  SHIFT                   VARCHAR(1),
+  SPEC_INSTRUCTION_SHEET  VARCHAR(2),
+  DIGIT_SPEC_200          VARCHAR(200),
+  PRODUCTION_PLANT        VARCHAR(1),
+  TYPE                    DECIMAL(3),
+  IDENT_LINE              VARCHAR(2),
+  COPY_VHD_FLAG           VARCHAR(1),
+  EXTERIOR_COLOR_SUFFIX   VARCHAR(4),
+  ORDER_TYPE              VARCHAR(1),
+  DESTINATION_CD          VARCHAR(5),
+  CAR_FAMILY_CD           VARCHAR(4),
+  SHOP                    VARCHAR(50),
+  DEPARTMENT              VARCHAR(50),
+  PLANT                   VARCHAR(50),
+  SHIFT_CD                VARCHAR(10),
+  COST_CENTER             VARCHAR(20),
+  PARKING_FLAG            VARCHAR(1),
+  FILE_NAME               VARCHAR(255)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_S_GPQ_MANUAL.sql
+DROP TABLE IF EXISTS `TB_S_GPQ_MANUAL`;
+CREATE TABLE IF NOT EXISTS `TB_S_GPQ_MANUAL` (
+  `RECORD_ID` DECIMAL(10),
+  `PERIOD` DATE,
+  `COST_CENTER` VARCHAR(8),
+  `SHIFT` CHAR(1),
+  `CAR_FAMILY_CD` VARCHAR(6),
+  `KATASHIKI_PROD_PART_NO` VARCHAR(25),
+  `TYPE_SUFFIX` VARCHAR(3),
+  `ORDER_TYPE` VARCHAR(1),
+  `EXTERIOR_COLOR` VARCHAR(5),
+  `GPQ` DECIMAL(12,2),
+  `GPQ_TYPE` CHAR(1)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_S_GPQ_PART_ORIGINAL.sql
+DROP TABLE IF EXISTS TB_S_GPQ_PART_ORIGINAL;
+
+CREATE TABLE TB_S_GPQ_PART_ORIGINAL
+(
+  RECORD_ID     DECIMAL(10),
+  PERIOD        VARCHAR(8),
+  COST_CENTER   VARCHAR(25),
+  SHIFT_NO      VARCHAR(1),
+  PART_CD_FROM  VARCHAR(20),
+  GPQ           VARCHAR(8),
+  SPOIL_PART    VARCHAR(8),
+  SPOIL_MAT     VARCHAR(8),
+  RECYCLE       VARCHAR(8),
+  FREE_SHOT     VARCHAR(8),
+  TYPE_SUFFIX        VARCHAR(3),
+  GPQ_TYPE          VARCHAR(1),
+  CANCEL_FLAG   VARCHAR(1),
+  PARKING_FLAG  VARCHAR(1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_S_TRACKING_POINT.sql
+DROP TABLE IF EXISTS `TB_S_TRACKING_POINT`;
+CREATE TABLE IF NOT EXISTS `TB_S_TRACKING_POINT` (
+  `RECORD_ID` DECIMAL(10),
+  `TRACKING_POINT` VARCHAR(3),
+  `KATASHIKI_PROD_PART_NO` VARCHAR(25),
+  `IDENT_LINE` VARCHAR(5),
+  `COST_CENTER` VARCHAR(8),
+  `TRACKING_POINT_DESC` VARCHAR(50),
+  `ACTIVE_FLAG` CHAR(1)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+-- Source: Database/App/Table/lpeff/TB_S_UPLOAD_AWH.sql
+DROP TABLE IF EXISTS TB_S_UPLOAD_AWH;
+CREATE TABLE IF NOT EXISTS TB_S_UPLOAD_AWH (
+  RECORD_ID DECIMAL(10),
+  PERIOD DATE,
+  COST_CENTER VARCHAR(8),
+  SHIFT CHAR(1),
+  ALL_STAFF DECIMAL(8),
+  ATTENDANTS DECIMAL(8),
+  PRODUCTION_TIME DECIMAL(7,2),
+  BREAK_TIME DECIMAL(7,2),
+  PREPARE_TIME DECIMAL(7,2),
+  KAIZEN_TIME_5S DECIMAL(7,2),
+  TRAINING_TIME DECIMAL(7,2),
+  STOP_TIME_BY_OWNER DECIMAL(7,2),
+  STOP_TIME_BY_OUTSIDE_LINE DECIMAL(7,2),
+  STOP_TIME_BY_OUTSIDE_SHOP DECIMAL(7,2),
+  DELETE_FLAG CHAR(1)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_S_UPLOAD_COST_CENTER_CONVERT.sql
+DROP TABLE IF EXISTS TB_S_UPLOAD_COST_CENTER_CONVERT;
+CREATE TABLE IF NOT EXISTS TB_S_UPLOAD_COST_CENTER_CONVERT (
+  RECORD_ID         BIGINT,
+  EFF_FROM          VARCHAR(7),   -- raw "MM/YYYY" text so [Step 2] can validate format itself
+  EFF_TO            VARCHAR(7),   -- raw "MM/YYYY" text so [Step 2] can validate format itself
+  PROD_PART_FROM    VARCHAR(25),
+  SUFFIX_FROM       VARCHAR(3),   -- staging keeps the spec/template name; mapped to TB_M_COST_CENTER_CONVERT.TYPE_SUFFIX_FROM on INSERT
+  COST_CENTER_FROM  VARCHAR(8),
+  PROD_PART_TO      VARCHAR(25),
+  SUFFIX_TO         VARCHAR(3),   -- mapped to TB_M_COST_CENTER_CONVERT.TYPE_SUFFIX_TO on INSERT
+  COST_CENTER_TO    VARCHAR(8),
+  DELETE_FLAG       CHAR(1)       -- blank or "D"
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_S_UPLOAD_GPQ_PART_CONVERT.sql
+DROP TABLE IF EXISTS TB_S_UPLOAD_GPQ_PART_CONVERT;
+CREATE TABLE IF NOT EXISTS TB_S_UPLOAD_GPQ_PART_CONVERT (
+  RECORD_ID BIGINT,
+  EFF_FROM VARCHAR(7),           -- raw "MM/YYYY" text so [Step 2] can validate format itself
+  PLANT VARCHAR(10),              -- intentionally unused by validation/persistence; kept for column parity with the PEF432 download-report template so a downloaded report can be re-uploaded as-is
+  SHOP VARCHAR(10),                -- same as PLANT above
+  PART_CD_FROM VARCHAR(20),
+  COST_CENTER_FROM VARCHAR(8),
+  TYPE_SUFFIX VARCHAR(3),        -- renamed from SUFFIX_FROM VARCHAR(2); matches TB_M_GPQ_PART_CONVERT.TYPE_SUFFIX
+  PROD_PART_NO_FROM VARCHAR(25), -- renamed from PROD_PART_NO_TO; GPQ Part Convert has no "To" concept
+  RATIO VARCHAR(10),             -- raw text (may include "%") so [Step 2] can validate format itself
+  DELETE_FLAG CHAR(1)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_T_AWH_WF.sql
+DROP TABLE IF EXISTS `TB_T_AWH_WF`;
+CREATE TABLE IF NOT EXISTS `TB_T_AWH_WF` (
+  `AWH_DT` DATE NOT NULL,
+  `PLANT` VARCHAR(3) NOT NULL,
+  `DEPARTMENT` VARCHAR(2) NOT NULL,
+  `SHOP` VARCHAR(10) NOT NULL,
+  `COST_CENTER` VARCHAR(8) NOT NULL,
+  `SHIFT` CHAR(1) NOT NULL,
+  `ALL_STAFF` DECIMAL(8) NOT NULL DEFAULT 0,
+  `ATTENDANTS` DECIMAL(8) NOT NULL DEFAULT 0,
+  `PRODUCTION_TIME` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `BREAK_TIME` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `PREPARE_TIME` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `KAIZEN_TIME_5S` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `TRAINING_TIME` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `STOP_TIME_BY_OWNER` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `STOP_TIME_BY_OUTSIDE_LINE` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `STOP_TIME_BY_OUTSIDE_SHOP` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
+  `FLAG` VARCHAR(1) NOT NULL,
+  `CREATE_BY` VARCHAR(36) NOT NULL,
+  `CREATE_DT` DATETIME NOT NULL,
+  `UPDATE_BY` VARCHAR(36) NOT NULL,
+  `UPDATE_DT` DATETIME NOT NULL,
+  PRIMARY KEY (`AWH_DT`, `COST_CENTER`, `SHIFT`)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Source: Database/App/Table/lpeff/TB_T_GPQ_CBU_ORIGINAL.sql
+DROP TABLE IF EXISTS TB_T_GPQ_CBU_ORIGINAL;
+CREATE TABLE TB_T_GPQ_CBU_ORIGINAL
+(
+  PROD_SUFFIX_RAW         VARCHAR(3),
+  PROD_SUFFIX             VARCHAR(3),
+  URN                     VARCHAR(10)NOT NULL,
+  PRODUCTION_DT           DATE NOT NULL,
+  KATASHIKI               VARCHAR(20),
+  TRACKING_POINT          VARCHAR(1),
+  SHIFT_NO                VARCHAR(1),
+  TYPE                    DECIMAL(3),
+  IDENT_LINE              VARCHAR(2),
+  EXTERIOR_COLOR_SUFFIX   VARCHAR(4),
+  ORDER_TYPE              VARCHAR(1),
+  CAR_FAMILY_CD         VARCHAR(4),
+  SHOP                    VARCHAR(50),
+  DEPARTMENT              VARCHAR(50),
+  PLANT                   VARCHAR(50),
+  SHIFT                VARCHAR(1),
+  COST_CENTER             VARCHAR(20),
+  SUM_URN_FLAG            VARCHAR(1)    NOT NULL DEFAULT 'N',
+  CREATE_BY               VARCHAR(36)   NOT NULL,
+  CREATE_DT               DATETIME      NOT NULL,
+  UPDATE_BY               VARCHAR(36)   NOT NULL,
+  UPDATE_DT               DATETIME      NOT NULL,
+  UNIQUE KEY UQ_T_GPQ_TMP_CBU_ORI_BK (URN, TRACKING_POINT, PRODUCTION_DT, SHIFT)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_T_GPQ_PART_MANUAL.sql
+DROP TABLE IF EXISTS TB_T_GPQ_PART_MANUAL;
+
+CREATE TABLE TB_T_GPQ_PART_MANUAL
+(
+  PERIOD             DATE          NOT NULL,   -- KEY
+  COST_CENTER        VARCHAR(8)    NOT NULL,   -- KEY
+  SHIFT              VARCHAR(1)    NOT NULL,   -- KEY
+  KATASHIKI_PROD_PART_NO  VARCHAR(25)   NOT NULL,   -- KEY
+  TYPE_SUFFIX               VARCHAR(3)    NOT NULL,
+  GPQ_UPLOAD         DECIMAL(12)  NOT NULL,
+  SHOP               VARCHAR(255),
+  DEPARTMENT         VARCHAR(255),
+  PLANT              VARCHAR(255),
+  GPQ                DECIMAL(12) NOT NULL,
+  CONVERSION_FLAG    VARCHAR(1)    NOT NULL DEFAULT 'N',
+  CREATE_BY          VARCHAR(36)   NOT NULL,
+  CREATE_DT          DATETIME      NOT NULL,
+  UPDATE_BY          VARCHAR(36)   NOT NULL,
+  UPDATE_DT          DATETIME      NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+-- Source: Database/App/Table/lpeff/TB_T_GPQ_PART_ORIGINAL.sql
+DROP TABLE IF EXISTS TB_T_GPQ_PART_ORIGINAL;
+
+CREATE TABLE TB_T_GPQ_PART_ORIGINAL
+(
+
+  PERIOD        DATE  NOT NULL,
+  COST_CENTER   VARCHAR(25),
+  SHIFT_NO         VARCHAR(1),
+  PART_CD_FROM  VARCHAR(20),
+  GPQ           VARCHAR(8),
+  SPOIL_PART    VARCHAR(8),
+  SPOIL_MAT     VARCHAR(8),
+  RECYCLE       VARCHAR(8),
+  FREE_SHOT     VARCHAR(8),
+  TYPE_SUFFIX        VARCHAR(3),
+  GPQ_TYPE          VARCHAR(1),
+  SHIFT            VARCHAR(255) NOT NULL,
+  SHOP             VARCHAR(255) NOT NULL,
+  DEPARTMENT       VARCHAR(255) NOT NULL,
+  PLANT            VARCHAR(255) NOT NULL,
+  PROD_PART     VARCHAR(25),
+  CONVERSION_FLAG  VARCHAR(1)    NOT NULL DEFAULT 'N',
+  CREATE_BY        VARCHAR(36)   NOT NULL,
+  CREATE_DT        DATETIME      NOT NULL,
+  UPDATE_BY        VARCHAR(36)   NOT NULL,
+  UPDATE_DT        DATETIME      NOT NULL,
+  -- PEF222 Step 6.1: resolved business key of an Original GPQ Part temp row.
+  -- Enforces the six-column lookup key so a repeated MATS N record is a
+  -- deterministic UPDATE (COUNT=1) or INSERT (COUNT=0); COUNT>1 is invalid
+  -- existing data (MPEF22214ERR).
+  CONSTRAINT UQ_T_GPQ_PART_ORI_BK UNIQUE (PERIOD, COST_CENTER, SHIFT_NO, SHIFT, PART_CD_FROM, TYPE_SUFFIX)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ;
+
+
+-- ============================================================
+-- View
+-- ============================================================
+
+-- ============================================================
+-- VW_DL_BB11_STOCK_ADJUSTMENT_OF_IN_HOUSE_PART.sql
+-- MySQL equivalent of Oracle view.
+--
+-- Conversion notes:
+-- - Removed BEQUEATH DEFINER and CREATE OR REPLACE FORCE
+-- - SYSDATE -> DATE(NOW()) for date-only comparison of EFF_DT/EXP_DT
+-- - PKG_CONSTANT.MARU_PRESS           -> 'P'
+-- - PKG_CONSTANT.MARU_RESIN           -> 'R'
+-- - PKG_CONSTANT.PHY_STATUS_APPROVED_WL      -> '2'
+-- - PKG_CONSTANT.PHY_STATUS_MANAGER_APPROVED -> '3'
+-- - PKG_CONSTANT.PHY_STATUS_GM_APPROVED      -> '4'
+-- - PKG_CONSTANT.PHY_STATUS_APPROVED         -> 'A'
+-- - PKG_CONSTANT.SAP_READ_FLAG_NOT_READ       -> '0'
+-- - PKG_CONSTANT.ACTIVE_FLAG_ACTIVE           -> 'Y'
+-- - NVL(x, y)   -> IFNULL(x, y)
+-- - TRUNC(date) -> DATE(date) for date-only truncation
+-- - Oracle string '' empty literals kept as-is (MySQL allows empty VARCHAR)
+-- ============================================================
+
+CREATE OR REPLACE VIEW VW_DL_BB11_STOCK_ADJUSTMENT_OF_IN_HOUSE_PART AS
+SELECT
+    P.ID             AS PHY_STOCK_ID,
+    P.CMPY_CD        AS CMPY_CD_FOR_QUERY,
+    C.ALIAS_NM       AS CMPY_CD,
+    P.PLANT_CD,
+    P.MARU_CD,
+    P.STK_DT         AS SUPPLY_DATE,
+    P.PART_CD,
+    P.DOC_NO         AS SUPPLY_DOC_NO,
+    IFNULL(P.ADJ_QTY, 0) AS ACT_QTY,
+    P.STK_DT         AS TRANSACTION_POST_DATE,
+    'N'              AS NC_FLAG,
+    IFNULL(P.REMARKS, '-') AS REMARKS,
+    S.SMS_PARTNO,
+    'PCS'            AS UOM,
+    ''               AS DOC_TYPE,
+    ''               AS CC_CHARGE,
+    ''               AS WBS_ELEMENT,
+    ''               AS ASSET_NO,
+    ''               AS REC_CMPY,
+    ''               AS REC_PLANT,
+    ''               AS REC_MARU,
+    ''               AS ISSUE_TYPE
+FROM TB_B_PHY_STOCK P
+INNER JOIN TB_B_PRT_SMSPRT S ON S.PART_CD = P.PART_CD
+INNER JOIN TB_B_CMPY C ON C.CMPY_CD = P.CMPY_CD
+WHERE DATE(NOW()) BETWEEN DATE(S.EFF_DT) AND DATE(S.EXP_DT)
+  AND P.MARU_CD IN ('P', 'R')
+  AND P.STATUS IN ('2', '3', '4', 'A')
+  AND P.SAP_READ = '0'
+  AND P.SAP_DOC_NO IS NULL;
+
+-- ============================================================
+-- Trigger
+-- ============================================================
+
+-- ============================================================
+-- TRG_LOGGER_HEADER.sql
+-- MySQL equivalent of Oracle trigger TRG_LOGGER_HEADER.
+--
+-- Oracle behavior: AFTER INSERT on TB_L_LOGGER, PRAGMA AUTONOMOUS_TRANSACTION.
+-- Attempts to INSERT into TB_L_LOGGER_H. On duplicate key (same APP_ID) it
+-- falls back to UPDATE.
+--
+-- MySQL differences:
+-- 1. MySQL triggers cannot COMMIT or use autonomous transactions.
+-- 2. INSERT ... ON DUPLICATE KEY UPDATE is used instead of INSERT/EXCEPTION pattern.
+-- 3. The trigger runs in the same transaction as the INSERT on TB_L_LOGGER.
+-- ============================================================
+
+DROP TRIGGER IF EXISTS TRG_LOGGER_HEADER;
+
+DELIMITER $$
+
+CREATE TRIGGER TRG_LOGGER_HEADER
+AFTER INSERT ON TB_L_LOGGER
+FOR EACH ROW
+BEGIN
+    INSERT INTO TB_L_LOGGER_H
+        (APP_ID, MODULE_ID, FUNCTION_ID, START_TM, END_TM, USER_ID, STATUS, MESSAGE)
+    VALUES
+        (NEW.V_APL_ID,
+         NEW.V_MODULE_ID,
+         NEW.V_FUNCTION_ID,
+         NEW.D_HODTCRE,
+         CASE WHEN NEW.V_STATUS = 'E' THEN NEW.D_HODTCRE ELSE NULL END,
+         NEW.V_USERCRE,
+         CASE WHEN NEW.V_STATUS IN ('E', 'S') THEN NEW.V_MESSAGE_TYPE ELSE 'P' END,
+         NEW.V_MESSAGE)
+    ON DUPLICATE KEY UPDATE
+        END_TM  = CASE WHEN NEW.V_STATUS = 'E' THEN NEW.D_HODTCRE ELSE NULL END,
+        STATUS  = CASE WHEN NEW.V_STATUS IN ('E', 'S') THEN NEW.V_MESSAGE_TYPE ELSE 'P' END,
+        MESSAGE = NEW.V_MESSAGE;
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- Notes:
+-- 1. Oracle exception-based fallback to UPDATE is replaced by
+--    INSERT ... ON DUPLICATE KEY UPDATE (idempotent upsert).
+-- 2. Oracle PRAGMA AUTONOMOUS_TRANSACTION cannot be replicated.
+--    The trigger INSERT into TB_L_LOGGER_H participates in the
+--    same transaction as the TB_L_LOGGER INSERT.
+-- 3. APP_ID (TB_L_LOGGER_H PRIMARY KEY) maps to V_APL_ID from TB_L_LOGGER.
+-- ============================================================
+
+-- ============================================================
+-- Routines
+-- ============================================================
+
+-- Source: Database/App/Routine/pkg_generic_seq.sql
+DROP PROCEDURE IF EXISTS pkg_generic_seq_get_and_update_seq;
+
+DELIMITER $$
+
+CREATE PROCEDURE pkg_generic_seq_get_and_update_seq(
+    IN  p_seq_key   VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN  p_seq_year  VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    OUT o_seq       DECIMAL(10)
+)
+BEGIN
+    DECLARE v_current DECIMAL(10);
+
+    SELECT CURRENT_RUNNING_NO
+      INTO v_current
+      FROM TB_M_GENERIC_SEQ
+     WHERE SEQ_KEY  = p_seq_key
+       AND SEQ_YEAR = p_seq_year
+       FOR UPDATE;
+
+    SET o_seq = v_current + 1;
+
+    UPDATE TB_M_GENERIC_SEQ
+       SET CURRENT_RUNNING_NO = v_current + 1
+     WHERE SEQ_KEY  = p_seq_key
+       AND SEQ_YEAR = p_seq_year;
+END$$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS pkg_generic_seq_generate_seq;
+
+DELIMITER $$
+
+CREATE PROCEDURE pkg_generic_seq_generate_seq(
+    IN  p_seq_key         VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN  p_seq_date        DATETIME,
+    IN  p_seq_year_format VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    OUT o_seq             DECIMAL(10)
+)
+BEGIN
+    DECLARE v_seq_year VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+    IF p_seq_year_format = 'NRESET' THEN
+        SET v_seq_year = 'NRESET';
+    ELSE
+        SET v_seq_year = DATE_FORMAT(p_seq_date, p_seq_year_format);
+    END IF;
+
+    INSERT INTO TB_M_GENERIC_SEQ (SEQ_KEY, SEQ_YEAR, CURRENT_RUNNING_NO)
+    VALUES (p_seq_key, v_seq_year, LAST_INSERT_ID(1))
+    ON DUPLICATE KEY UPDATE
+        CURRENT_RUNNING_NO = LAST_INSERT_ID(CURRENT_RUNNING_NO + 1);
+
+    SET o_seq = LAST_INSERT_ID();
+END$$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS pkg_generic_seq_move_old_seq_to_hist;
+
+DELIMITER $$
+
+CREATE PROCEDURE pkg_generic_seq_move_old_seq_to_hist(
+    IN p_seq_key         VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_seq_date        DATETIME,
+    IN p_seq_year_format VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+)
+BEGIN
+    DECLARE v_seq_year VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+    SET v_seq_year = DATE_FORMAT(p_seq_date, p_seq_year_format);
+
+    INSERT INTO TB_M_GENERIC_SEQ_HIST (SEQ_KEY, SEQ_YEAR, CURRENT_RUNNING_NO)
+    SELECT SEQ_KEY, SEQ_YEAR, CURRENT_RUNNING_NO
+      FROM TB_M_GENERIC_SEQ
+     WHERE SEQ_KEY  = p_seq_key
+       AND SEQ_YEAR <> v_seq_year;
+
+    DELETE FROM TB_M_GENERIC_SEQ
+     WHERE SEQ_KEY  = p_seq_key
+       AND SEQ_YEAR <> v_seq_year;
+END$$
+
+DELIMITER ;
+
+DROP FUNCTION IF EXISTS pkg_generic_seq_get_resettable_seq;
+
+DELIMITER $$
+
+CREATE FUNCTION pkg_generic_seq_get_resettable_seq(
+    p_seq_key         VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    p_seq_date        DATETIME,
+    p_seq_year_format VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+)
+RETURNS DECIMAL(10)
+MODIFIES SQL DATA
+NOT DETERMINISTIC
+BEGIN
+    DECLARE v_seq_no DECIMAL(10);
+
+    CALL pkg_generic_seq_move_old_seq_to_hist(p_seq_key, p_seq_date, p_seq_year_format);
+    CALL pkg_generic_seq_generate_seq(p_seq_key, p_seq_date, p_seq_year_format, v_seq_no);
+
+    RETURN v_seq_no;
+END$$
+
+DELIMITER ;
+
+DROP FUNCTION IF EXISTS pkg_generic_seq_get_no_resettable_seq;
+
+DELIMITER $$
+
+CREATE FUNCTION pkg_generic_seq_get_no_resettable_seq(
+    p_seq_key VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+)
+RETURNS DECIMAL(10)
+MODIFIES SQL DATA
+NOT DETERMINISTIC
+BEGIN
+    DECLARE v_seq_no DECIMAL(10);
+
+    CALL pkg_generic_seq_generate_seq(p_seq_key, NOW(), 'NRESET', v_seq_no);
+
+    RETURN v_seq_no;
+END$$
+
+DELIMITER ;
+
+-- Source: Database/App/Routine/pkg_logging.sql
+DROP PROCEDURE IF EXISTS pkg_logging_insert_l_logger;
+
+DELIMITER $$
+
+CREATE PROCEDURE pkg_logging_insert_l_logger(
+    IN p_d_hodtcre      DATETIME,
+    IN p_v_apl_id       VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_v_module_id    VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_v_function_id  VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_v_usercre      VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_v_message_type VARCHAR(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_v_message_code VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_v_message      VARCHAR(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_v_status       VARCHAR(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+)
+BEGIN
+    INSERT INTO TB_L_LOGGER
+        (D_HODTCRE, V_APL_ID, V_MODULE_ID, V_FUNCTION_ID, V_USERCRE,
+         V_MESSAGE_TYPE, V_MESSAGE_CODE, V_MESSAGE, V_STATUS)
+    VALUES
+        (p_d_hodtcre, p_v_apl_id, p_v_module_id, p_v_function_id, p_v_usercre,
+         p_v_message_type, p_v_message_code, p_v_message, p_v_status);
+    COMMIT;
+END$$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS pkg_logging_insert_log_start;
+DROP PROCEDURE IF EXISTS pkg_logging_insert_log_end_with_success;
+DROP PROCEDURE IF EXISTS pkg_logging_insert_log_end_with_error;
+DROP PROCEDURE IF EXISTS pkg_logging_insert_log_end_with_warning;
+
+DROP PROCEDURE IF EXISTS pkg_logging_insert_log_info_processing;
+
+DELIMITER $$
+
+CREATE PROCEDURE pkg_logging_insert_log_info_processing(
+    IN p_module_id    VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_function_id  VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_apl_id       VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_user         VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_message_code VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_message      VARCHAR(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+)
+BEGIN
+    CALL pkg_logging_insert_l_logger(
+        NOW(), p_apl_id, p_module_id, p_function_id, p_user,
+        'I', p_message_code,
+        CONCAT(p_message_code, ': ', p_message),
+        'P'
+    );
+END$$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS pkg_logging_insert_log_error_processing;
+
+DELIMITER $$
+
+CREATE PROCEDURE pkg_logging_insert_log_error_processing(
+    IN p_module_id    VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_function_id  VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_apl_id       VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_user         VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_message_code VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_message      VARCHAR(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+)
+BEGIN
+    CALL pkg_logging_insert_l_logger(
+        NOW(), p_apl_id, p_module_id, p_function_id, p_user,
+        'E', p_message_code,
+        CONCAT(p_message_code, ': ', p_message),
+        'P'
+    );
+END$$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS pkg_logging_insert_log_warning_processing;
+
+DELIMITER $$
+
+CREATE PROCEDURE pkg_logging_insert_log_warning_processing(
+    IN p_module_id    VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_function_id  VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_apl_id       VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_user         VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_message_code VARCHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    IN p_message      VARCHAR(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+)
+BEGIN
+    CALL pkg_logging_insert_l_logger(
+        NOW(), p_apl_id, p_module_id, p_function_id, p_user,
+        'W', p_message_code,
+        CONCAT(p_message_code, ': ', p_message),
+        'P'
+    );
+END$$
+
+DELIMITER ;
+
+-- Source: Database/App/Routine/pkg_common.sql
+DROP FUNCTION IF EXISTS pkg_common_get_system_desc;
+
+DELIMITER $$
+
+CREATE FUNCTION pkg_common_get_system_desc(
+    p_category      VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    p_sub_category  VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    p_cd            VARCHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+)
+RETURNS VARCHAR(4000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+READS SQL DATA
+DETERMINISTIC
+BEGIN
+    DECLARE v_value VARCHAR(4000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+    SELECT VALUE
+      INTO v_value
+      FROM TB_M_SYSTEM
+     WHERE CATEGORY     = UPPER(p_category)
+       AND SUB_CATEGORY = UPPER(p_sub_category)
+       AND CD           = UPPER(p_cd)
+       AND STATUS       = 'Y'
+     LIMIT 1;
+
+    RETURN v_value;
+END$$
+
+DELIMITER ;
+
+DROP FUNCTION IF EXISTS pkg_common_get_full_name_from_user_id;
+
+DELIMITER $$
+
+CREATE FUNCTION pkg_common_get_full_name_from_user_id(
+    p_user_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+)
+RETURNS VARCHAR(201) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+READS SQL DATA
+DETERMINISTIC
+BEGIN
+    DECLARE v_full_name VARCHAR(201) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+    BEGIN
+        DECLARE CONTINUE HANDLER FOR NOT FOUND
+            SET v_full_name = p_user_id;
+
+        SELECT FULL_NAME
+          INTO v_full_name
+          FROM TB_M_USER
+         WHERE USER_ID = p_user_id
+         LIMIT 1;
+    END;
+
+    RETURN IFNULL(v_full_name, p_user_id);
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- Seed Data: Migration/LPEF
+-- ============================================================
+
+-- Source: Database/App/Migration/LPEF/TB_M_MODULE.sql
+INSERT INTO TB_M_MODULE_H (V_MODULE_ID, V_MODULE_NAME, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('PEF1', 'Master', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_MODULE_H (V_MODULE_ID, V_MODULE_NAME, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('PEF2', 'Transaction', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_MODULE_H (V_MODULE_ID, V_MODULE_NAME, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('PEF3', 'Calulation', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_MODULE_H (V_MODULE_ID, V_MODULE_NAME, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('PEF4', 'Report', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+
+INSERT INTO TB_M_MODULE_D (V_MODULE_ID, V_FUNCTION_ID, V_FUNCTION_NAME, V_ERROR_FLAG, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES
+  ('PEF4', 'PEF431', 'Benchmark Hour Report', NULL, 'SYSTEM', NOW(), 'SYSTEM', NOW()),
+  ('PEF4', 'PEF432', 'GPQ Part Convert Report', NULL, 'SYSTEM', NOW(), 'SYSTEM', NOW()),
+  ('PEF4', 'PEF433', 'Good Part Quantity Report', NULL, 'SYSTEM', NOW(), 'SYSTEM', NOW()),
+  ('PEF1', 'PEF1221', 'BMH Master Excel Upload', NULL, 'SYSTEM', NOW(), 'SYSTEM', NOW()),
+  ('PEF1', 'PEF1231', 'GPQ Part Convert Upload', NULL, 'SYSTEM', NOW(), 'SYSTEM', NOW()),
+  ('PEF1', 'PEF1241', 'Cost Center Convert Upload', NULL, 'SYSTEM', NOW(), 'SYSTEM', NOW());
+-- Source: Database/App/Migration/LPEF/TB_M_SYSTEM.sql
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('CONFIG', 'GLOBAL', 'MOCK_CUR_DATE', '21/08/2026 09:00:00', 'mock current date for e2e', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+
+
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'ORDER_TYPE', 'BLANK', 'Blank', '1', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'ORDER_TYPE', 'D', 'D', '2', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'ORDER_TYPE', 'E', 'E', '3', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+
+
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'ACTIVE_FLAG', 'Y', 'active', '1', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'ACTIVE_FLAG', 'N', 'in-active', '2', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+
+
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'SHIFT', 'W', 'White Shift (Day)', '1', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'SHIFT', 'Y', 'Yellow Shift (Night)', '2', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'SHIFT', 'D', 'Day Off', '3', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+
+
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'GPQ_TYPE', '1', 'CBU', '1', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'GPQ_TYPE', '2', 'PART', '2', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'GPQ_MODE', 'LATEST', 'Latest', '1', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'GPQ_MODE', 'ORIGINAL', 'Original', '2', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'GPQ_MODE', 'MANUAL', 'Manual', '3', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'GPQ_DATA', 'ACTUAL', 'Actual Data', '1', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'GPQ_DATA', 'EDITED', 'Edited Data', '2', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+
+
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'SHIFT_NO', '1', 'Shift 1', '1', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW())
+ON DUPLICATE KEY UPDATE UPDATE_DT = VALUES(UPDATE_DT);
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'SHIFT_NO', '2', 'Shift 2', '1', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW())
+ON DUPLICATE KEY UPDATE UPDATE_DT = VALUES(UPDATE_DT);
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('MASTER', 'SHIFT_NO', '3', 'Shift 3', '1', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW())
+ON DUPLICATE KEY UPDATE UPDATE_DT = VALUES(UPDATE_DT);
+
+
+-- PEF222 Function Group calculation lock. STATUS 'N' = unlocked (available).
+-- PEF222 acquires it in Step 1 (serialized conditional UPDATE ... WHERE STATUS='N')
+-- and releases it in Step 11/[End] unless it handed the calculation chain to PEF223.
+-- Shared with PEF116/PEF211/PEF212 (screens) and PEF223/PEF321/PEF322/PEF323 (batches).
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('PROCESS_LOCK', 'CALCULATION', 'GROUP_CAL', 'LOCKED', 'Group calculation lock', 'N', 'SYSTEM', NOW(), 'SYSTEM', NOW())
+ON DUPLICATE KEY UPDATE UPDATE_DT = VALUES(UPDATE_DT);  -- keep an existing lock STATUS untouched
+-- Common Receiving email config for PEF1241 (SEND_FLAG = 'N' -> TO_EMAIL / CC_EMAIL unused;
+-- a given file id makes the batch's email-config resolution fail before staging, so every Common
+-- see PEF124-Cost-Center-Convert-known-issues.md #3 for the resolve mechanism + PEF1221/PEF1231 gap)
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('RECEIVING_EMAIL_CONFIG', 'PEF1221', 'SEND_FLAG', 'N', 'Y = send, N = skip email', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('RECEIVING_EMAIL_CONFIG', 'PEF1221', 'TO_EMAIL', '', 'Upload Benchmark Hour Master notification TO addresses', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('RECEIVING_EMAIL_CONFIG', 'PEF1221', 'CC_EMAIL', '', 'Upload Benchmark Hour Master notification CC addresses', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('RECEIVING_EMAIL_CONFIG', 'PEF1241', 'SEND_FLAG', 'N', 'Y = send, N = skip email', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('RECEIVING_EMAIL_CONFIG', 'PEF1241', 'TO_EMAIL', '', 'Upload Cost Center Convert Master notification TO addresses', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('RECEIVING_EMAIL_CONFIG', 'PEF1241', 'CC_EMAIL', '', 'Upload Cost Center Convert Master notification CC addresses', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW());
+
+
+
+-- PEF222 (file id PEF2221) DXC Common Receiving email notification config.
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('RECEIVING_EMAIL_CONFIG', 'PEF2221', 'SEND_FLAG', 'Y', 'Y = send, N = skip email', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW())
+ON DUPLICATE KEY UPDATE UPDATE_DT = VALUES(UPDATE_DT);
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('RECEIVING_EMAIL_CONFIG', 'PEF2221', 'TO_EMAIL', 'touser@demo.com', 'PEF222 receiving notification TO addresses', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW())
+ON DUPLICATE KEY UPDATE UPDATE_DT = VALUES(UPDATE_DT);
+INSERT INTO TB_M_SYSTEM (CATEGORY, SUB_CATEGORY, CD, VALUE, REMARK, STATUS, CREATE_BY, CREATE_DT, UPDATE_BY, UPDATE_DT)
+VALUES ('RECEIVING_EMAIL_CONFIG', 'PEF2221', 'CC_EMAIL', 'ccuser@demo.com', 'PEF222 receiving notification CC addresses', 'Y', 'SYSTEM', NOW(), 'SYSTEM', NOW())
+ON DUPLICATE KEY UPDATE UPDATE_DT = VALUES(UPDATE_DT);
